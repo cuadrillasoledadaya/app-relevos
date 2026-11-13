@@ -17,7 +17,7 @@ Se usa sobre todo desde el móvil, durante el recorrido, así que tiene que serv
 | --- | --- |
 | Next.js | 16.3.3 (App Router) |
 | Payload CMS | 3.93.0 (panel en `/admin`) |
-| Base de datos | SQLite en desarrollo, con `@payloadcms/db-sqlite` 3.93.0 |
+| Base de datos | Supabase (Postgres), con `@payloadcms/db-postgres` 3.93.0 |
 | Tailwind CSS | 4.3.5 |
 | Tests | Vitest 4.0.18 |
 | Gestor de paquetes | pnpm 11.8.0 |
@@ -34,16 +34,29 @@ El service worker está escrito a mano en `public/sw.js`: no hay ninguna librer�
 
 ```bash
 pnpm install
-cp .env.example .env
 ```
 
-Edita `.env` con los valores descritos en [Variables de entorno](#variables-de-entorno). Ojo: el `.env.example` que viene de la plantilla de Payload trae valores de MongoDB que **no** sirven aquí; los valores correctos son los de la tabla.
+La base de datos es **Supabase** (Postgres). Antes de arrancar hay que dejarle la cadena de conexión y el esquema:
 
-Arranca el servidor de desarrollo:
+1. Creá el proyecto en [supabase.com](https://supabase.com) (o usá el que ya tengas).
+2. En **Project Settings → Database**, copiá la cadena de conexión. Para migraciones usá la conexión **directa** (puerto `5432`); para el tráfico de la app podés usar la **agrupada** (puerto `6543`).
+3. Poné la cadena en `.env` como `DATABASE_URL` y definí `PAYLOAD_SECRET` (ver [Variables de entorno](#variables-de-entorno)).
+4. Creá y aplicá las migraciones:
+
+```bash
+pnpm migrate:create   # genera el fichero de migración en src/migrations
+pnpm migrate          # aplica las migraciones pendientes
+```
+
+Ojo: el `.env.example` que viene de la plantilla de Payload trae valores de MongoDB que **no** sirven aquí; los valores correctos son los de la tabla.
+
+Arrancá el servidor de desarrollo:
 
 ```bash
 pnpm dev
 ```
+
+En desarrollo, `DATABASE_PUSH=true` sincroniza el esquema automáticamente. Contra una base en la nube es preferible el camino de migraciones: `push` puede alterar tablas existentes.
 
 | Dirección | Qué es |
 | --- | --- |
@@ -58,9 +71,10 @@ En una instalación nueva, **la primera cuenta que se registra es administrador 
 | Variable | Obligatoria | Valor por defecto | Para qué sirve |
 | --- | --- | --- | --- |
 | `PAYLOAD_SECRET` | sí, en producción | hay un valor de reserva en `src/payload.config.ts` pensado para desarrollo: en producción hay que definirla siempre | firma las sesiones y las cookies de Payload |
-| `DATABASE_URL` | no | `file:./dev.db` | ruta del fichero SQLite de desarrollo |
-
-El fichero SQLite (`*.db`) está ignorado por git, así que cada máquina tiene su propia base de datos local.
+| `DATABASE_URL` | sí | — | cadena de conexión de Supabase: `postgresql://postgres.<ref>:<clave>@aws-0-<region>.pooler.supabase.com:5432/postgres` |
+| `DATABASE_SCHEMA` | no | `public` | esquema de Postgres donde viven las tablas |
+| `DATABASE_SSL` | no | activo | `false` desactiva SSL (sólo para un Postgres local sin TLS; Supabase lo exige) |
+| `DATABASE_PUSH` | no | apagado | `true` sincroniza el esquema en desarrollo sin migraciones |
 
 ## Comandos
 
@@ -74,6 +88,8 @@ El fichero SQLite (`*.db`) está ignorado por git, así que cada máquina tiene 
 | `pnpm lint` | ESLint |
 | `pnpm generate:types` | genera `src/payload-types.ts` a partir de las colecciones (es un fichero generado: no está en el repositorio hasta que se ejecuta) |
 | `pnpm generate:importmap` | regenera el import map del panel de administración |
+| `pnpm migrate:create` | genera un fichero de migración en `src/migrations` a partir del esquema de las colecciones |
+| `pnpm migrate` | aplica las migraciones pendientes en la base de datos |
 | `node scripts/generar-iconos.mjs` | regenera los iconos PNG de la PWA |
 
 Para desplegar: `pnpm build` y `pnpm start` (con `PAYLOAD_SECRET` definido y `NODE_ENV=production`). El `Dockerfile` que viene de la plantilla necesita `output: 'standalone'` en `next.config.ts`, que hoy no está activado: usa el build de Next directamente hasta que se decida esa vía.
@@ -155,5 +171,5 @@ No cuentes con estas cosas como si fueran funciones del producto:
 
 - **El número de trabajaderas lo elige la cuadrilla.** No hay un número fijo ni un máximo impuesto en el código: se valida que sea un entero mayor o igual a 1.
 - **El número de relevos por paso y sus reglas concretas todavía no los ha decidido el producto.** No están escritos en el código como decisiones firmes: no los inventes ni los des por cerrados.
-- **Las reglas estrictas de cambio de costaleros más allá de las invariantes estructurales siguen por definir.** El catálogo arranca con ocho invariantes estructurales (siete `error` y una `warning`) y crece por registro, sin tocar el motor.
+- **Las reglas estrictas de cambio de costaleros más allá de las invariantes estructurales siguen por definir.** El producto está estudiando el caso real y el catálogo de reglas va a ser bastante más largo: las ocho invariantes estructurales actuales (siete `error` y una `warning`) son sólo la base, y el catálogo crece por registro, sin tocar el motor.
 - **La aplicación no tiene pantalla de gestión de cuentas.** Las cuentas se dan de alta y editan desde `/admin`.
