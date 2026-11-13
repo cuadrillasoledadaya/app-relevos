@@ -45,16 +45,16 @@ Motivos, en orden de peso:
 
 1. **Payload manda en la elección.** El encargo pide Payload y MCP; la Opción A sólo entrega la mitad de lo pedido (el CMS en otro proyecto, con su propio despliegue y su propio ciclo).
 2. **Un solo lugar para el dominio.** La lógica de relevos y sus reglas se escriben una vez, en `src/domain`, y la consumen el admin, la PWA, los tests y los agentes por MCP.
-3. **Offline sin surrender.** Con Serwist el service worker se genera de verdad en el build de Next 16. `next-pwa` está archivado y es *webpack-only*: bajo Turbopack compila bien y no produce ningún service worker, sin error ni aviso (fallo silencioso). No es una opción.
+3. **Offline sin surrender.** El service worker se genera de verdad en el build y su código vive en el repositorio. `next-pwa` está archivado y es *webpack-only*: bajo Turbopack compila bien y no produce ningún service worker, sin error ni aviso (fallo silencioso). No es una opción.
 4. **Reversibilidad.** Si mañana el cliente/App Admin pesan demasiado, el dominio y el contrato REST/MCP siguen intactos y el cliente puede cambiar a Vite sin reescribir lógica de negocio.
 
 ### Decisiones que acompañan a la Opción B
 
-- **Service worker:** Serwist, nunca `next-pwa`.
+- **Service worker:** escrito a mano en `public/sw.js` (unos 110 líneas, cero dependencias). Se descartó Serwist: su plugin se acopla al bundler, y en este proyecto el bundler ya está modificado por el `withPayload` de Payload; dos plugins de build interactuando bajo Next 16 + Turbopack son una fuente de fallos silenciosos, y el service worker es justo la pieza que no puede fallar en silencio (si no se genera, la PWA no instala y la app deja de funcionar sin red). Con el service worker propio, su comportamiento es código del repositorio, revisable y testeable a ojo.
 - **Base de datos:** adaptador SQLite (`@payloadcms/db-sqlite`) en desarrollo, porque el entorno de trabajo no tiene Docker ni PostgreSQL; la configuración queda por variable de entorno para Postgres en producción.
 - **Estilos:** Tailwind CSS 4.
 - **Tests del dominio:** Vitest.
-- **Convention de idioma del repositorio:** identificadores, comentarios de código y nombres de fichero en inglés (convención estándar); textos de interfaz, mensajes de error y documentación en español, que es el idioma del dominio (`paso`, `cuadrilla`, `relevo`, `trabajadera`) y de las personas usuarias.
+- **Convention de idioma del repositorio:** identificadores y nombres de fichero en inglés (convención estándar); comentarios de código y textos de interfaz, mensajes de error y documentación en español, que es el idioma del dominio (`paso`, `cuadrilla`, `relevo`, `trabajadera`) y de las personas usuarias.
 
 ## Consecuencias
 
