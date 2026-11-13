@@ -4,7 +4,7 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
-import { Users } from './collections/Users'
+import { Cuadrillas, Costaleros, Users } from './collections'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -16,7 +16,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users],
+  collections: [Users, Cuadrillas, Costaleros],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || 'SOLO-DESARROLLO-cambiar-en-produccion',
   typescript: {
