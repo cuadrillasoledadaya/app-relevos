@@ -34,6 +34,31 @@ La autenticación es **por clave de API**, no por usuario y contraseña. La clav
 
 La clave queda ligada a tu cuenta y no se puede reasignar a otro usuario. Para dar de baja el acceso, borra la clave desde el panel.
 
+### Crear la clave por API (automatización)
+
+Verificado contra esta aplicación: la colección `payload-mcp-api-keys` acepta `apiKey` explícito al crearla, y el valor elegido es el que sirve para autenticarse. Es la vía para provisionar agentes desde un script o un CI:
+
+```bash
+curl -X POST http://localhost:3000/api/payload-mcp-api-keys \
+  -H "Authorization: JWT <token-de-un-admin>" \
+  -H 'Content-Type: application/json' \
+  -d '{"label":"agente-lectura","user":1,"enableAPIKey":true,"apiKey":"MCP-LOCAL-0001","pasos":{"find":true},"relevos":{"find":true}}'
+```
+
+El texto plano de la clave **no se puede volver a leer** (Payload lo cifra e indexa por HMAC): la respuesta de la API no lo devuelve. Si la fijas tú, guárdala en ese momento.
+
+### Comprobar que el servidor MCP responde
+
+```bash
+curl -X POST http://localhost:3000/api/mcp \
+  -H "Authorization: Bearer <MCP-USER-API-KEY>" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"prueba","version":"1.0.0"}}}'
+```
+
+Respuesta esperada (verificada): `protocolVersion` `2024-11-05` y la capacidad `tools`. Con la misma cabecera, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}` devuelve las herramientas activas segun las capacidades marcadas en la clave. Sin cabecera o con una clave invalida, la respuesta es `401`.
+
 ## Colecciones expuestas
 
 Las colecciones que el plugin expone están declaradas en `src/payload.config.ts` (`plugins → mcpPlugin({ collections })`):
