@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+@source '../../src';
+
+@theme {
+  --color-tinta: #1b1024;
+  --color-tinta-900: #2b1b3d;
+  --color-hueso: #f2ece1;
+  --color-oro: #e0a13a;
+  --color-oro-claro: #f2c76d;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+  }
+
+  /* Respeta el notch en móviles cuando la app va a pantalla completa. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
