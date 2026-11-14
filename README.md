@@ -48,7 +48,7 @@ pnpm migrate:create   # genera el fichero de migración en src/migrations
 pnpm migrate          # aplica las migraciones pendientes
 ```
 
-Ojo: el `.env.example` que viene de la plantilla de Payload trae valores de MongoDB que **no** sirven aquí; los valores correctos son los de la tabla.
+El `.env` de este proyecto se arma con el ejemplo de la sección [Variables de entorno](#variables-de-entorno).
 
 Arrancá el servidor de desarrollo:
 
@@ -75,6 +75,27 @@ En una instalación nueva, **la primera cuenta que se registra es administrador 
 | `DATABASE_SCHEMA` | no | `public` | esquema de Postgres donde viven las tablas |
 | `DATABASE_SSL` | no | activo | `false` desactiva SSL (sólo para un Postgres local sin TLS; Supabase lo exige) |
 | `DATABASE_PUSH` | no | apagado | `true` sincroniza el esquema en desarrollo sin migraciones |
+
+Ejemplo para copiar en un `.env`. La clave de la base de datos está en Supabase, en **Project Settings → Database**:
+
+```bash
+# Conexión directa (puerto 5432 del pooler): la que usan las migraciones.
+# Conexión agrupada (puerto 6543 del pooler): la que usa el tráfico de la app.
+DATABASE_URL=postgresql://postgres.auvjqkdiadvwdmefmlyf:<CLAVE>@aws-0-<region>.pooler.supabase.com:5432/postgres
+
+# Firma las sesiones y las cookies de Payload. Obligatoria en producción.
+PAYLOAD_SECRET=cambiame-por-una-cadena-larga-y-aleatoria
+
+# Esquema de Postgres donde viven las tablas. Supabase usa "public".
+DATABASE_SCHEMA=public
+
+# SSL está activo por defecto. Poné "false" sólo para un Postgres local sin TLS.
+DATABASE_SSL=true
+
+# "true" sincroniza el esquema automáticamente en desarrollo, sin migraciones.
+# Contra una base en la nube es preferible el camino de migraciones.
+DATABASE_PUSH=false
+```
 
 ## Comandos
 
