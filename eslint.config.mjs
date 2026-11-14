@@ -43,6 +43,8 @@ const eslintConfig = defineConfig([
     // Ficheros generados por Payload:
     'src/payload-types.ts',
     'src/payload-generated-schema.ts',
+    // Migraciones generadas por `payload migrate:create`:
+    'src/migrations/**',
   ]),
 ])
 
