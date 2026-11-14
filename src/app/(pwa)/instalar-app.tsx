@@ -1,11 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 interface EventoBeforeInstallPrompt extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
+
+/**
+ * El detector de iOS no cambia mientras la app está abierta, así que la
+ * suscripción es vacía. `useSyncExternalStore` devuelve `false` en el servidor
+ * y el valor real en el cliente tras la hidratación: leerlo con `useState`
+ * obligaría a fijarlo dentro de un efecto, que provoca renderizados en
+ * cascada.
+ */
+const suscribir = () => () => {}
+
+const detectarIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
+
+const sinIOSEnServidor = () => false
 
 /**
  * Botón de instalación de la PWA. Chrome/Edge disparan `beforeinstallprompt`;
@@ -14,11 +27,9 @@ interface EventoBeforeInstallPrompt extends Event {
  */
 export function BotonInstalar() {
   const [evento, setEvento] = useState<EventoBeforeInstallPrompt | null>(null)
-  const [esIOS, setEsIOS] = useState(false)
+  const esIOS = useSyncExternalStore(suscribir, detectarIOS, sinIOSEnServidor)
 
   useEffect(() => {
-    setEsIOS(/iphone|ipad|ipod/i.test(navigator.userAgent))
-
     const alPoderInstalar = (evento: Event) => {
       evento.preventDefault()
       setEvento(evento as EventoBeforeInstallPrompt)
