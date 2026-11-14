@@ -25,20 +25,12 @@ const costaleros: Costalero[] = [
   { id: 'k4', nombre: 'Dani', cuadrillaId: 'c2', disponible: true },
 ];
 
-/**
- * `crearPaso` recibe la entrada con la clave `numeroTrabajaderas`, pero
- * `src/domain/paso.ts` (propiedad de otra unidad de trabajo, fuera de la
- * superficie de edición de esta) lee todavía la clave mal escrita
- * `numeroTrabajadieras`. Se pasan ambas claves para poder construir el paso
- * con el helper del dominio; el comportamiento esperado no cambia.
- */
 function crearPasoDePrueba(numeroTrabajaderas: number): Paso {
   const entrada = {
     id: 'paso-1',
     nombre: 'Paso de prueba',
     cuadrillaId: 'c1',
     numeroTrabajaderas,
-    numeroTrabajadieras: numeroTrabajaderas,
   };
 
   return crearPaso(entrada);
@@ -52,8 +44,8 @@ function relevo(overrides: Partial<RelevoPlanificado> = {}): RelevoPlanificado {
     puntoId: 'p1',
     cuadrillaEntranteId: 'c1',
     asignaciones: [
-      { costaleroId: 'k1', trabajaderaId: 'trab-1' },
-      { costaleroId: 'k2', trabajaderaId: 'trab-2' },
+      { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-1' },
+      { costaleroId: 'k2', trabajaderaId: 'trab-paso-1-2' },
     ],
     ...overrides,
   };
@@ -91,8 +83,8 @@ describe('crearMotor', () => {
           puntoId: 'p1',
           cuadrillaEntranteId: 'c2',
           asignaciones: [
-            { costaleroId: 'k3', trabajaderaId: 'trab-1' },
-            { costaleroId: 'k4', trabajaderaId: 'trab-2' },
+            { costaleroId: 'k3', trabajaderaId: 'trab-paso-1-1' },
+            { costaleroId: 'k4', trabajaderaId: 'trab-paso-1-2' },
           ],
         }),
       ]),
@@ -110,15 +102,15 @@ describe('crearMotor', () => {
         relevo({
           puntoId: '',
           cuadrillaEntranteId: 'c1',
-          asignaciones: [{ costaleroId: 'k3', trabajaderaId: 'trab-1' }],
+          asignaciones: [{ costaleroId: 'k3', trabajaderaId: 'trab-paso-1-1' }],
         }),
         relevo({
           orden: 2,
           puntoId: 'p2',
           cuadrillaEntranteId: 'c1',
           asignaciones: [
-            { costaleroId: 'k1', trabajaderaId: 'trab-1' },
-            { costaleroId: 'k1', trabajaderaId: 'trab-2' },
+            { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-1' },
+            { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-2' },
           ],
         }),
       ]),

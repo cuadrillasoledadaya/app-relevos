@@ -257,7 +257,7 @@ export interface Paso {
    */
   trabajadoras: {
     /**
-     * Código de la trabajadera, por ejemplo "trab-1". Es el dato que se usa al asignar costaleros.
+     * Código de la trabajadera, por ejemplo "trab-12-3" (identificador del paso y número). Es el dato que se usa al asignar costaleros. Tiene que ser único en toda la cuadrilla: las trabajaderas de todos los pasos comparten tabla.
      */
     id: string;
     /**

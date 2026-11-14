@@ -35,20 +35,12 @@ const puntos: PuntoDeRelevo[] = [
   { id: 'p2', nombre: 'Calle Ancha', orden: 2 },
 ];
 
-/**
- * `crearPaso` recibe la entrada con la clave `numeroTrabajaderas`, pero
- * `src/domain/paso.ts` (propiedad de otra unidad de trabajo, fuera de la
- * superficie de edición de esta) lee todavía la clave mal escrita
- * `numeroTrabajadieras`. Se pasan ambas claves para poder construir el paso
- * con el helper del dominio; el comportamiento esperado no cambia.
- */
 function crearPasoDePrueba(id: string, numeroTrabajaderas: number): Paso {
   const entrada = {
     id,
     nombre: 'Paso de prueba',
     cuadrillaId: 'c1',
     numeroTrabajaderas,
-    numeroTrabajadieras: numeroTrabajaderas,
   };
 
   return crearPaso(entrada);

@@ -8,20 +8,12 @@ import {
 import { crearPaso } from '../../src/domain/paso';
 import type { Paso } from '../../src/domain/types';
 
-/**
- * `crearPaso` recibe la entrada con la clave `numeroTrabajaderas`, pero
- * `src/domain/paso.ts` (propiedad de otra unidad de trabajo, fuera de la
- * superficie de edición de esta) lee todavía la clave mal escrita
- * `numeroTrabajadieras`. Se pasan ambas claves para poder construir el paso
- * con el helper del dominio; el comportamiento esperado no cambia.
- */
 function crearPasoDePrueba(numeroTrabajaderas: number): Paso {
   const entrada = {
     id: 'paso-1',
     nombre: 'Paso de prueba',
     cuadrillaId: 'c1',
     numeroTrabajaderas,
-    numeroTrabajadieras: numeroTrabajaderas,
   };
 
   return crearPaso(entrada);
@@ -34,11 +26,32 @@ describe('crearPaso', () => {
     expect(paso.trabajaderas).toHaveLength(4);
     expect(paso.trabajaderas.map((trabajadora) => trabajadora.numero)).toEqual([1, 2, 3, 4]);
     expect(paso.trabajaderas.map((trabajadora) => trabajadora.id)).toEqual([
-      'trab-1',
-      'trab-2',
-      'trab-3',
-      'trab-4',
+      'trab-paso-1-1',
+      'trab-paso-1-2',
+      'trab-paso-1-3',
+      'trab-paso-1-4',
     ]);
+  });
+
+  it('gives the working positions ids that are unique across the whole cuadrilla', () => {
+    const pasoA = crearPaso({
+      id: 'paso-a',
+      nombre: 'Paso A',
+      cuadrillaId: 'c1',
+      numeroTrabajaderas: 3,
+    });
+    const pasoB = crearPaso({
+      id: 'paso-b',
+      nombre: 'Paso B',
+      cuadrillaId: 'c1',
+      numeroTrabajaderas: 3,
+    });
+
+    const ids = [...pasoA.trabajaderas, ...pasoB.trabajaderas].map(
+      (trabajadora) => trabajadora.id,
+    );
+
+    expect(new Set(ids).size).toBe(6);
   });
 
   it('keeps the working positions sorted and splits them between both sides', () => {

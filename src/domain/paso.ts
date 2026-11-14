@@ -20,16 +20,31 @@ export interface EntradaCrearPaso {
 }
 
 /**
+ * Identificador de una trabajadera dentro de la cuadrilla.
+ *
+ * Las trabajaderas de todos los pasos comparten una única tabla, en la que el
+ * `id` es la clave primaria: el valor tiene que ser único en toda la
+ * cuadrilla, no sólo dentro del paso. Por eso el identificador del paso forma
+ * parte del identificador de la trabajadera.
+ */
+export function idTrabajadera(pasoId: string, numero: number): string {
+  return `trab-${pasoId}-${numero}`;
+}
+
+/**
  * Reparto de las trabajaderas de un paso (regla v1, a pulir con el tiempo).
  *
  * - Las trabajaderas se numeran de 1 a N, de izquierda a derecha.
  * - La mitad izquierda recibe `ceil(N/2)` trabajaderas y la derecha `floor(N/2)`.
  * - Con N impar, la primera trabajadera (número 1) es de tipo `centro`.
  */
-export function crearTrabajaderas(numeroTrabajadieras: number): Trabajadera[] {
-  assertNumeroTrabajaderas(numeroTrabajadieras);
+export function crearTrabajaderas(
+  pasoId: string,
+  numeroTrabajaderas: number,
+): Trabajadera[] {
+  assertNumeroTrabajaderas(numeroTrabajaderas);
 
-  const total = Math.floor(numeroTrabajadieras);
+  const total = Math.floor(numeroTrabajaderas);
   const enIzquierda = Math.ceil(total / 2);
 
   const trabajadoras: Trabajadera[] = [];
@@ -38,7 +53,7 @@ export function crearTrabajaderas(numeroTrabajadieras: number): Trabajadera[] {
     const lado = numero <= enIzquierda ? 'izquierda' : 'derecha';
     const tipo: TipoTrabajadera = total % 2 === 1 && numero === 1 ? 'centro' : 'puesto';
 
-    trabajadoras.push({ id: `trab-${numero}`, numero, lado, tipo });
+    trabajadoras.push({ id: idTrabajadera(pasoId, numero), numero, lado, tipo });
   }
 
   return trabajadoras;
@@ -63,7 +78,7 @@ export function assertNumeroTrabajaderas(numeroTrabajadieras: number): void {
  * Es determinista: la misma entrada produce siempre el mismo paso.
  */
 export function crearPaso(entrada: EntradaCrearPaso): Paso {
-  const trabajaderas = crearTrabajaderas(entrada.numeroTrabajaderas);
+  const trabajaderas = crearTrabajaderas(entrada.id, entrada.numeroTrabajaderas);
 
   return {
     id: entrada.id,
