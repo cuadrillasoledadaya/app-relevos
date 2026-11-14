@@ -15,6 +15,14 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
 - **S7 — Construcción por modos agénticos.** "quiero que hagas el proyecto con modos agenticos cada uno haga su parte por separado". Cada unidad de trabajo tiene ruta (inline o delegada a un agente), superficie de edición acotada y disjoint, y se integra en un mismo repo validado de forma conjunta.
 - **S8 — Asignación de costaleros a las trabajaderas (supuesto).** *Asumido, no pedido explícitamente:* cada relevo asigna costaleros concretos a las trabajaderas del Paso, y la cuadrilla que releva debe aportar el número de costaleros que el Paso exige. Si el supuesto resulta falso, se reescribe S8 y su tarea.
 
+- **S9 — Catálogo real de reglas de cambio de costaleros (R1–R5), entregado por la cuadrilla.** La cuadrilla entregó sus reglas (ver L19). Vienen de otra aplicación suya donde el relevo es **dentro de cada trabajadera** y los costaleros forman un único grupo; este proyecto releva **por cuadrilla completa**. La traducción al modelo de acá es la siguiente, y es la que se implementa:
+  - **R1 — `COSTALEROS_POR_TRABAJADERA` (error).** En cada relevo, cada trabajadera del paso tiene exactamente `K` costaleros asignados. `K` viene de `config.costalerosPorTrabajadera` y por defecto es `1`: es lo que hoy hace el planificador y lo que significa una trabajadera en este proyecto ("un puesto bajo el paso donde se coloca un costalero"). En la otra aplicación el valor es `5`; acá es configuración, no una constante.
+  - **R2 — `COSTALERO_CAMBIA_DE_TRABAJADERA` (error).** Un costalero ocupa **una sola** trabajadera en todo el plan: no cambia de puesto entre relevos.
+  - **R3 — `COSTALERO_FUERA_DEMASIADO_TIEMPO` (error).** Ningún costalero pasa más de `M` relevos seguidos sin asignación, con `M` = `config.maxRelevosFueraSeguidos` (por defecto `2`). "Fuera" significa sin asignación en ese relevo, incluidos los relevos que lleva otra cuadrilla.
+  - **R4 — `DESCANSO_DESIGUAL` (warning).** Dentro de una cuadrilla, el número de relevos sin asignación es el mismo para todos sus costaleros, con diferencia de 1 como máximo. Es la regla de equidad: el descanso se reparte y no lo carga siempre el mismo grupo.
+  - **R5 — no es una regla.** El número de trabajaderas del paso lo elige la persona usuaria (S1); en la otra aplicación es 7 por defecto. Queda como configuración del paso, no como invariante del relevo.
+  - Las cuatro reglas se registran por catálogo, sin tocar `src/domain/motor.ts`.
+
 ## Tasks
 
 - **T1** — Scaffold del repo: Next.js 16 + Payload 3 + Supabase/Postgres + Tailwind 4 + Vitest, rama `feature/cuadrilla-costaleros`. Specs: S4, S5, S6. Ruta: inline. Estado: done. Commits: `5b1fd79` (`chore: scaffold next-payload pwa with offline shell`).
@@ -28,12 +36,13 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
 - **T9** — Documentación: README, ADR de stack (React vs Next.js), guía de uso MCP para agentes, AGENTS.md. Specs: S6, S7. Ruta: delegada (worker). Estado: done. Commit: `39e4f83`.
 - **T10** — Cierre: `tsc`, suite Vitest, `next build`, differential check de los comandos existentes y RDD assess por work-unit commit. Specs: todas. Ruta: inline. Estado: done. Evidencia: 57 tests en verde, `pnpm typecheck` sin errores, `pnpm build` genera `/`, `/pasos/[id]` y `/relevos`; los 9 assessments por commit devuelven tier medio con `reviewDue: false`, así que la auto-verificación de los agentes basta y no corre revisor aparte; verificación funcional end-to-end contra el servidor de desarrollo (ver L11).
 - **T11** — Cambiar la base de datos a Supabase (Postgres): adaptador `@payloadcms/db-postgres`, variables de entorno, migraciones y documentación. Specs: S5. Ruta: inline. Estado: done. Commit: `e172ce2` (`feat(payload): supabase postgres adapter with migrations`). Corrección (L14): el mensaje del commit anuncia migraciones, pero **no se versionó ninguna**: `src/migrations/` no existe. El camino queda documentado y pendiente de ejecutarse contra la instancia real (ver T14).
-- **T12** — Catálogo completo de reglas de cambio de costaleros (el conjunto real que va a definir la cuadrilla). Specs: S2. Ruta: pendiente del producto. Estado: blocked — espera al estudio del usuario, que dijo que el catálogo tiene bastantes reglas y las deliverá más adelante; el motor ya acepta reglas por registro.
+- **T12** — Catálogo real de reglas de cambio de costaleros: las cuatro reglas de S9 registradas por contrato de dominio, con sus pruebas. Specs: S2, S9. Ruta: delegada (worker). Estado: pendiente. La cuadrilla entregó el estudio (L19); el catálogo v1 inicial queda como invariantes estructurales y estas cuatro se registran aparte.
 - **T13** — Restaurar el lint: `eslint.config.mjs` en modo flat config y corregir lo que destapa. Specs: S4. Ruta: inline. Estado: done. Commit: `b1b6ac6` (`fix(lint): restore the flat config and fix what it surfaced`). Evidencia: `pnpm lint` termina limpio (antes abortaba con "Converting circular structure to JSON" sin analizar ningún fichero); `pnpm typecheck` sin errores; 57 tests en verde; `pnpm build` genera `/`, `/pasos/[id]` y `/relevos`; el servidor de producción responde 200 en `/`, `/relevos`, `/manifest.webmanifest` y `/sw.js`, y el bundle de cliente lleva el `useSyncExternalStore` del detector de iOS. Lo que destapó: `react-hooks/set-state-in-effect` en `src/app/(pwa)/instalar-app.tsx` (fijar el estado de iOS dentro de un efecto), corregido con `useSyncExternalStore`; dos avisos menores (`postcss.config.mjs`, `public/sw.js`); y una clave `@payloadcms/db-postgres` duplicada en `package.json`.
 - **T14** — Aplicar la migración base en la instancia real de Supabase. Specs: S5. Ruta: inline (un paso desde la máquina del usuario). Estado: blocked — **la migración ya está generada y versionada** (ver T16); lo único que falta es aplicarla en `auvjqkdiadvwdmefmlyf`, y eso no se puede hacer desde el entorno del agente: el único host de Postgres de ese proyecto es `db.auvjqkdiadvwdmefmlyf.supabase.co`, que resuelve sólo por IPv6, y esta máquina **no tiene IPv6 operativo** (ni Cloudflare ni Google dan `ENETUNREACH`; no hay proxy ni túnel). El pooler clásico `aws-0-<region>.pooler.supabase.com` es alcanzable por IPv4 pero Supavisor no reconoce el proyecto como tenant en las 17 regiones que resuelven, con cualquier formato de usuario y de base. No es, por tanto, un problema de credenciales: la clave de la base de datos del usuario no llega a probarse porque la conexión nunca alcanza la capa de autenticación. Pasos desde una máquina con IPv6: escribir `.env` con `DATABASE_URL` y `PAYLOAD_SECRET`, y correr `pnpm migrate`.
 - **T15** — Quitar de circulación el `.env.example` heredado de la plantilla de Payload (traía valores de MongoDB). Specs: S5. Ruta: inline. Estado: done. Commit: `279ba69` (`docs: mover el ejemplo de entorno al README y sacar la plantilla heredada`). La política de seguridad del harness bloquea la escritura en esa ruta incluso con autorización explícita del usuario, así que la solución fue no escribirla: `git rm --cached .env.example` deja el fichero fuera del control de versiones (intacto en el disco), `.gitignore` lo ignora y el README pasa a ser el lugar canónico, con el ejemplo completo listo para copiar a un `.env`.
 - **T16** — Restaurar el arranque del backend tras el cambio a Supabase, y versionar la migración base. Specs: S5. Ruta: inline. Estado: done. Commit: `6d18128` (`fix(payload): no pasar "public" as schemaName y versionar la migracion base`). El adaptador de Postgres llama a `pgSchema(args.schemaName)` cuando el esquema viene definido, y drizzle rechaza `public` ("You can't specify 'public' as schema name"): la inicialización de Payload reventaba y con ella TODO el backend (`/admin`, `/api/pasos` y `/api/mcp` devolvían 500). T11 lo había dejado sin verificar, porque la comprobación anterior a la sesión era de la era SQLite. El esquema sólo se declara cuando es distinto de `public`. La migración base quedó versionada en `src/migrations/` (16 tablas, 5 enums, 22 claves foráneas, 69 índices, con `up` y `down`).
 - **T17** — Identificadores de trabajadera únicos en toda la cuadrilla. Specs: S1, S8. Ruta: inline. Estado: done. Commit: `4a81078` (`fix(domain): ids de trabajadera unicos en toda la cuadrilla`). Las trabajaderas de todos los pasos comparten una tabla donde el `id` es la clave primaria, así que el valor es único en toda la cuadrilla: el dominio generaba `trab-<numero>` en cada paso y el segundo paso creado con esa salida lo rechazaba la API con un 400. Ahora el identificador incluye el identificador del paso (`trab-<idDelPaso>-<numero>`), que el dominio ya recibía. La descripción del campo en `src/collections/Pasos.ts` daba "trab-1" como ejemplo, valor que sólo era válido para el primer paso creado.
+- **T18** — Planificador que reparte el descanso: las asignaciones de cada relevo se eligen de forma que el descanso se reparta dentro de la cuadrilla y nadie cambie de puesto. Specs: S3, S9. Ruta: delegada (worker). Estado: pendiente.
 
 ## Log
 
@@ -82,3 +91,30 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
   1. El backend estaba caído desde T11 por el `schemaName: 'public'` (ver T16). Basta con pedir una ruta de API para verlo, sin ninguna credencial: `/admin`, `/api/pasos` y `/api/mcp` devolvían 500.
   2. El identificador de la trabajadera es único en toda la cuadrilla, no sólo dentro del paso (ver T17). Se comprobó con la base real: dos pasos con ids del dominio se crean los dos (201), mientras que repetir ids entre dos pasos hace que el segundo se rechace con 400 `The following field is invalid: id`. La causa está en la migración: `pasos_trabajadoras.id` es clave primaria de una tabla compartida.
   Nota sobre las credenciales: las API keys `sb_publishable_…` / `sb_secret_…` del usuario son del Data API (PostgREST) y no sirven para Postgres; hacen falta la clave de la base de datos o un personal access token.
+- **L19 — Reglas de la cuadrilla (2026-11-14, verbatim):**
+  > aqui te engtrogo el T12 ahi van las reglas y como estaba funcionando en mi otra asplicacion quiero que uses lo que te haste falta de la parte de la logica combinacional pero no es que lo copies solo que entiendas y veas como funcionaba y eso puede ayudarte : Interpreto "fuera" = descansando fuera del paso, y "salir" = salir del paso en un relevo. Como los relevos solo se hacen dentro de cada trabajadera, la equidad se calcula por trabajadera, no global.
+  >
+  > Reglas del motor (v1)
+  > #    Regla    Tipo
+  > R1    Siempre 5 costaleros debajo en cada trabajadera    Dura
+  > R2    Un costalero solo releva en su trabajadera    Dura
+  > R3    Máx. 2 relevos seguidos fuera    Dura
+  > R4    Mismo nº de salidas por costalero (diferencia ≤ 1)    Equidad
+  > R5    Nº de trabajaderas configurable (por defecto 7)    Config
+  >
+  > Reparto de ejemplo (6 a 10 por trabajadera)
+  > Trabajadera    Costaleros    Fuera por tramo    Fuera por costalero (12 tramos)
+  > 1    6    1    2
+  > 2    7    2    3-4
+  > 3    8    3    4-5
+  > 4    9    4    5-6
+  > 5    10    5    6
+  > 6    8    3    4-5
+  > 7    7    2    3-4
+  >
+  > Total: 55 costaleros, 35 debajo, 20 de relevo. Ojo: en la trabajadera de 6 cada costalero descansa mucho menos que en la de 10. Es consecuencia de R2, así que conviene equilibrar los tamaños.
+  >
+  > Notas:
+  > Con trabajaderas de hasta 10 costaleros, R3 se cumple siempre (descansan como mucho la mitad del tiempo). Con 11 o más puede empezar a chocar con R4, y por eso validarPlan lo detecta.
+  > Cuando el nº de tramos no divide exacto, R4 permite diferencia de 1 salida.
+  El usuario adjuntó además el código de su otra aplicación como referencia de la lógica combinacional. **No se copia**: se entiende el criterio (elegir primero a quien menos ha descansado, y quien llega al máximo de descansos seguidos entra obligatoriamente) y se reimplementa con el vocabulario de este proyecto. La traducción de las reglas al modelo de relevos por cuadrilla está en S9.

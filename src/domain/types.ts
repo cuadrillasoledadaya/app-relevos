@@ -132,12 +132,44 @@ export interface ResultadoValidacion {
   hallazgos: Hallazgo[];
 }
 
+/**
+ * Parámetros del relevo que la cuadrilla puede ajustar.
+ *
+ * No son invariantes: son los números con los que la cuadrilla decide cómo
+ * trabaja su paso. Cada uno tiene un valor por defecto que preserva el
+ * comportamiento actual del planificador.
+ */
+export interface ConfigRelevo {
+  /**
+   * Costaleros asignados a cada trabajadera en cada relevo (regla R1).
+   *
+   * Por defecto `1`: en este proyecto una trabajadera es un puesto bajo el
+   * paso donde se coloca un costalero. La cuadrilla que lleva cinco personas
+   * por puesto lo sube a `5`.
+   */
+  costalerosPorTrabajadera: number;
+  /**
+   * Relevos seguidos como máximo sin asignación (regla R3).
+   *
+   * Por defecto `2`, el mismo valor que usa la cuadrilla.
+   */
+  maxRelevosFueraSeguidos: number;
+}
+
+/** Valores por defecto del relevo: los que preservan el comportamiento actual. */
+export const CONFIG_RELEVO_POR_DEFECTO: ConfigRelevo = {
+  costalerosPorTrabajadera: 1,
+  maxRelevosFueraSeguidos: 2,
+};
+
 /** Contexto que una regla recibe para evaluar. */
 export interface ContextoReglas {
   paso: Paso;
   plan: PlanDeRelevo;
   cuadrillas: Cuadrilla[];
   costaleros: Costalero[];
+  /** Parámetros del relevo; si no se dan, rigen los valores por defecto. */
+  config?: ConfigRelevo;
 }
 
 /**
@@ -164,4 +196,6 @@ export interface EntradaPlan {
   puntos: PuntoDeRelevo[];
   /** Coste por costalero, en segundos (opcional). */
   costePorCostaleroSegundos?: number;
+  /** Parámetros del relevo; si no se dan, rigen los valores por defecto. */
+  config?: ConfigRelevo;
 }
