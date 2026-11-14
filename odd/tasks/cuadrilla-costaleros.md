@@ -57,6 +57,33 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
 - **T20** — Fijaciones manuales de un costalero en un tramo (dentro o fuera), con R6 como comprobación. Specs: S9. Ruta: pendiente de decisión. Estado: pendiente — es una función de la interfaz: la persona fija a alguien y el plan tiene que respetarlo.
 - **T21** — R7: quien sale fuera en el primer tramo no repite fuera en el último. Specs: S9. Ruta: pendiente de decisión. Estado: pendiente — en el modelo de relevos por cuadrilla la regla por costalero es insatisfacible; hay que decidir si se traduce a nivel de cuadrilla ("la cuadrilla que lleva el primer relevo no puede llevar el último") o se descarta.
 - **T22** — Dominio del modelo por trabajadera: `Costalero` gana `trabajaderaId` y `rol`; el plan pasa a ser una secuencia de tramos con la plantilla de cada trabajadera; los cinco puestos y la jerarquía de alturas entran en el contrato. Specs: S9, S10. Ruta: inline (contrato compartido). Estado: pendiente.
+  **Contrato del modelo por trabajadera (T22).** Decisiones de la cuadrilla: el número de tramos es **propio de cada trabajadera** (como en su simulador, para que a cada una le salga exacta la equidad) y el `tipo` de la trabajadera **se elimina**: lo que distingue a cada posición es si es de patero (la primera y la última del paso) o de costero (las del medio).
+
+  ```ts
+  /** Rol de un costalero: el puesto que ocupa por naturaleza. */
+  export type RolCostalero =
+    | 'patero-izquierdo'
+    | 'patero-derecho'
+    | 'fijador-izquierdo'
+    | 'fijador-derecho'
+    | 'corriente';
+
+  /** Puesto que un costalero ocupa debajo del paso. */
+  export type PuestoCostalero = RolCostalero;
+
+  /** Nivel de altura de cada rol y de cada puesto. */
+  export const NIVEL_ROL: Record<RolCostalero, number> = {
+    'patero-izquierdo': 3, 'patero-derecho': 3,
+    'fijador-izquierdo': 2, 'fijador-derecho': 2,
+    corriente: 1,
+  };
+  ```
+
+  - `Costalero` gana `trabajaderaId` (la trabajadera a la que pertenece) y `rol`. `Trabajadera` pierde `tipo` y gana `tramos` (cuántos tramos de la ruta recorre su rotación). `lado` se conserva como dato descriptivo, no lo usa el motor.
+  - El plan deja de ser una lista de relevos de cuadrilla y pasa a ser una lista de **tramos** con la plantilla de cada trabajadera: `PlanDeRotacion { pasoId, tramos: TramoPlanificado[] }`, donde `TramoPlanificado { orden, puntoId, asignaciones: AsignacionCostalero[] }` y `AsignacionCostalero { costaleroId, trabajaderaId, puesto }`.
+  - La plantilla de cada trabajadera en un tramo son sus asignaciones; **quien no aparece, descansa**. Una asignación siempre es de un costalero de esa misma trabajadera y con un puesto de los cinco.
+  - R1 se reformula: en cada tramo, cada trabajadera tiene exactamente `K` costaleros debajo, con `K` = 5 por defecto (los cinco puestos). R2 es estructural (el costalero pertenece a su trabajadera) y se mantiene como comprobación. R3 cuenta los tramos seguidos sin asignación de cada costalero de la trabajadera. R4 se calcula **por trabajadera**: el número de tramos que cada costalero de la misma trabajadera descansa debe ser igual, con diferencia 0 si el reparto es exacto y 1 si no. R7: nadie puede descansar en el primer tramo y en el último a la vez. R8: los cinco puestos de cada trabajadera quedan cubiertos en cada tramo y ningún costalero ocupa un puesto dos niveles por encima o por debajo del suyo.
+  - El motor de reglas no se toca: todo entra por registro.
 - **T23** — Reglas re-apuntadas al modelo real: R4 por trabajadera, R7 (nadie fuera en el primer tramo y en el último) y R8 (los cinco puestos cubiertos con la jerarquía de alturas), y revisión del catálogo estructural v1. Specs: S9, S10. Ruta: delegada (worker). Estado: pendiente.
 - **T24** — Planificador de rotación por trabajadera: rota la plantilla de cada trabajadera tramo a tramo con el criterio de la cuadrilla, la cobertura de los cinco puestos y el reparto del descanso. Specs: S3, S9, S10. Ruta: delegada (worker). Estado: pendiente.
 - **T25** — Colecciones Payload con el modelo nuevo: `costaleros` con trabajadera y rol, `relevos` como tramos con la plantilla por trabajadera y el puesto de cada costalero. Specs: S5, S10. Ruta: pendiente de decisión. Estado: pendiente — la base de Supabase está vacía, así que el cambio de esquema no tiene migración pendiente.
