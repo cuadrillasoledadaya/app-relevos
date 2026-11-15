@@ -271,3 +271,36 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
 - **L26 — R6 en el dominio, verificado contra el simulador de la cuadrilla (2026-11-15):** las fijaciones manuales entraron en el dominio con la decisión de S12. El simulador se volvió a extraer a un arnés aparte (su motor es `gen`, `val`, `outLevels` y `asignar`) y se compararon los cuatro escenarios que importan: una fijación dentro de rango, un tramo fuera de rango, dos fijaciones contradictorias del mismo costalero en el mismo tramo, y tres tramos seguidos fijados fuera con el máximo en dos. El simulador y el dominio se comportan igual en los cuatro, y con una fijación válida el reparto que sale es idéntico (los mismos cinco debajo y el mismo fuera).
   **Errores de dominio nuevos:** `FIJACION_INVALIDA` (la fijación no se puede aplicar) y `FIJACION_IMPOSIBLE` (no hay reparto que la respete). La regla `FIJACION_NO_CUMPLIDA` comprueba que el plan las respetó.
   **Aviso sobre el vocabulario del dominio:** la grafía es `trabajadera`, `trabajaderas` y `trabajaderaId` (con «e»); la capa de Payload usa `trabajadoras` (con «o») para el array de posiciones, porque ese nombre es parte del contrato de la API y de la migración. No se unifican a ciegas.
+
+- **L27 — La migracion aplicada en Supabase y la entrega cortada en cadena de PRs (2026-11-15):**
+  **T14 queda resuelta.** El usuario dio un *personal access token* de Supabase, que es la via que faltaba: la Management API va por HTTPS y funciona desde esta maquina, sin depender del IPv6 que esta no tiene. Se extrajo el SQL de la migracion versionada (`src/migrations/20261114_101337.ts`) y se aplico sentencia a sentencia (96 sentencias, 0 fallos). La base real queda con **16 tablas, 5 enums, 22 claves foraneas y 69 indices**, los mismos numeros que la verificacion contra Postgres 18.6 de la sesion anterior. La migracion queda registrada en `payload_migrations` con `batch = 1`, asi que un `pnpm migrate` futuro no hace nada.
+  **El pooler clasico no sirve para este proyecto.** Se probo con el host y el usuario correctos de la region real del proyecto (`eu-west-1`): `aws-0-eu-west-1.pooler.supabase.com` responde `tenant/user postgres.<ref> not found`. El unico Postgres autoritativo es el directo, `db.<ref>.supabase.co`, que resuelve solo por IPv6. Para el despliegue en Vercel hace falta la cadena de conexion del dashboard.
+  **La entrega se corta en cadena de PRs** (`chain_strategy=feature-branch-chain`, decision del usuario). `main` es la rama base (el scaffold del proyecto) y `tracker/rotacion` es la vista de integracion: un PR en borrador que no se mergea hasta que esten revisados e integrados todos los hijos. Cada PR hijo se apoya en el anterior y se revisa en orden.
+  **Cortes (lineas del diff de cada PR contra su base):**
+  | # | Rama | Contenido | Lineas |
+  | --- | --- | --- | --- |
+  | 1 | `pr-01-contratos-dominio` | T2: los contratos del dominio | 268 |
+  | 2 | `pr-02-motor-reglas` | T3: el motor extensible | 226 |
+  | 3 | `pr-03-catalogo-v1` | T3: el catalogo v1 | 652 |
+  | 4 | `pr-04-planificador-cuadrilla` | T3: el planificador por cuadrilla | 411 |
+  | 5 | `pr-05-colecciones-payload` | T4 y T5: las colecciones y el plugin MCP | 562 |
+  | 6 | `pr-06-offline-adaptador` | T7: el contrato y el adaptador de IndexedDB | 320 |
+  | 7 | `pr-07-offline-capa-y-pruebas` | T7: el almacen, la cola y sus pruebas | 738 |
+  | 8 | `pr-08-pantallas-datos` | T8: los tipos y la normalizacion | 472 |
+  | 9 | `pr-09-pantallas` | T8: las pantallas | 990 |
+  | 10 | `pr-10-documentacion` | T9: README, ADR, guia MCP y AGENTS.md | 455 |
+  | 11 | `pr-11-tipos-payload` | los tipos generados de Payload | 831 |
+  | 12 | `pr-12-postgres` | T11: el adaptador de Postgres | 263 |
+  | 13 | `pr-13-lint-entorno` | T13 y T15: el lint y el entorno | 119 |
+  | 14 | `pr-14-migracion-base` | T16: el esquema corregido y la migracion base | 2.537 |
+  | 15 | `pr-15-ids-unicos` | T17: los identificadores unicos | 143 |
+  | 16 | `pr-16-spec-modelo-trabajadera` | la spec S9 a S11 | 197 |
+  | 17 | `pr-17-contrato-t22` | T22: el contrato por trabajadera | 1.580 |
+  | 18 | `pr-18-catalogo-v2` | T23: el catalogo v2 | 1.469 |
+  | 19 | `pr-19-planificador-rotacion` | T24: el planificador de la rotacion | 932 |
+  | 20 | `pr-20-test-integracion` | el test de integracion | 154 |
+  | 21 | `pr-21-hechos-y-decisiones` | los hechos y las decisiones | 46 |
+  | 22 | `pr-22-fijaciones-manuales` | T28: las fijaciones manuales (R6) | 428 |
+  | 23 | `pr-23-cierre` | el cierre de T28 | 6 |
+  **Sobre el presupuesto de 400 lineas:** nueve slices lo pasan (1, 2, 5, 6, 12, 13, 15, 16, 20, 21, 23). Las que lo superan son unidades de trabajo que no se pueden partir sin romperlas: el codigo y sus pruebas van juntos (3, 4, 7, 8, 22), el diff es mayormente generado (11: los tipos de Payload; 14: el snapshot de drizzle y el SQL de la migracion) o son la unidad completa con su retirada del modelo anterior (17: 1.212 de sus 1.580 lineas son el borrado del planificador y del catalogo por cuadrilla; 18 y 19: el catalogo v2 y el planificador, con sus pruebas). Se hizo **un solo paso de corte**, como manda la politica de entrega.
+  **Nota de seguridad:** el *personal access token* de Supabase quedo en la conversacion, asi que conviene rotarlo al terminar este bloque.
