@@ -44,6 +44,12 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
   - **Los puestos.** Los `K` costaleros que quedan debajo se reparten los cinco puestos minimizando: 0 si el puesto es el de su rol natural, 1 si es del mismo nivel, 2 si es de otro nivel permitido. Un costalero de nivel 1 nunca ocupa un puesto de nivel 3, ni al revés.
   - **Determinismo.** La misma entrada produce siempre el mismo plan. El simulador desempata al final con un generador pseudoaleatorio con semilla; acá el desempate es por identificador, así que el plan es reproducible sin semilla.
 
+- **S12 — El plan se calcula al vuelo y se congela al entregar; las fijaciones manuales entran ahora (decisiones del 2026-11-15).** El usuario decidió estas tres cosas:
+  - **El plan de rotación se calcula en el momento**, con el dominio, a partir de la plantilla de cada trabajadera. No hay un plan guardado por defecto: la app lo calcula cada vez que se abre el paso.
+  - **Al entregar se congela**: al imprimir las tarjetas, el plan queda guardado como una copia de los tramos con su plantilla, para poder reimprimirlo, auditarlo y consultarlo desde los agentes.
+  - **Las fijaciones manuales (R6) entran en este bloque**: la persona puede fijar un costalero dentro o fuera en un tramo, el planificador lo respeta y una regla comprueba que se respetó.
+  - **La entrega**: la rama se corta en cadena de PRs revisables. El usuario abre el repositorio en GitHub y el proyecto en Vercel; el dominio y la app quedan en la rama `feature/cuadrilla-costaleros` hasta que se configure el remoto.
+
 ## Tasks
 
 - **T1** — Scaffold del repo: Next.js 16 + Payload 3 + Supabase/Postgres + Tailwind 4 + Vitest, rama `feature/cuadrilla-costaleros`. Specs: S4, S5, S6. Ruta: inline. Estado: done. Commits: `5b1fd79` (`chore: scaffold next-payload pwa with offline shell`).
@@ -136,9 +142,10 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
   7. Si una trabajadera tiene menos de `K` costaleros disponibles, se lanza `ErrorDeDominio` con el código `COSTALEROS_INSUFICIENTES`.
   - Determinismo: la misma entrada produce siempre el mismo plan. Sin azar, sin fechas, sin estado global.
   - Tests: determinismo, cobertura de los cinco puestos en cada tramo, R3 respetado, R4 exacto cuando el reparto divide, R7 respetado, la jerarquía de alturas respetada, y el error de costaleros insuficientes.
-- **T25** — Colecciones Payload con el modelo nuevo: `costaleros` con trabajadera y rol, `relevos` como tramos con la plantilla por trabajadera y el puesto de cada costalero. Specs: S5, S10. Ruta: pendiente de decisión. Estado: pendiente — la base de Supabase está vacía, así que el cambio de esquema no tiene migración pendiente.
-- **T26** — Pantallas de la rotación: matriz por trabajadera y tramo, con quién va debajo y quién descansa, y las tarjetas por costalero para imprimir. Specs: S4, S10. Ruta: pendiente de decisión. Estado: pendiente.
-- **T27** — Herramientas MCP con el modelo nuevo. Specs: S5, S10. Ruta: pendiente de decisión. Estado: pendiente.
+- **T25** — Colecciones Payload con el modelo nuevo. Specs: S5, S10, S12. Ruta: inline (contrato de datos). Estado: pendiente. `costaleros` gana `trabajadoraId` y `rol`; las `trabajadoras` del paso pierden `tipo` y ganan `tramos`; `relevos` pasa a ser `tramos`, la copia congelada del plan entregado (tramo, punto, estado y la plantilla por trabajadera con el puesto de cada costalero); y entra `fijaciones` (costalero, tramo y estado dentro/fuera). La base de Supabase está vacía, así que el cambio de esquema no tiene migración pendiente.
+- **T28** — Fijaciones manuales (R6) en el dominio. Specs: S9, S12. Ruta: inline. Estado: pendiente. `EntradaRotacion` acepta `fijaciones` (costalero, tramo y estado `dentro`/`fuera`); el planificador las respeta: el que está fijo dentro va debajo del paso y el que está fijo fuera descansa, y avisa con error de dominio si la composición no permite cerrarlo. Una regla nueva, `FIJACION_NO_CUMPLIDA`, comprueba que el plan las respetó. Es la traducción del `pins` del simulador de la cuadrilla.
+- **T26** — Pantallas de la rotación: matriz por trabajadera y tramo, con quién va debajo y quién descansa, las fijaciones, y las tarjetas por costalero para imprimir. Specs: S4, S10, S12. Ruta: delegada (worker). Estado: pendiente. Es la primera vez que la app importa el dominio: el plan se calcula al vuelo y las tarjetas se generan de ese plan.
+- **T27** — Herramientas MCP con el modelo nuevo: calcular el plan de rotación de un paso y devolver la plantilla por tramo, y leer las fijaciones y el plan congelado. Specs: S5, S10, S12. Ruta: pendiente de decisión. Estado: pendiente.
 
 ## Log
 
@@ -253,3 +260,10 @@ Rama: `feature/cuadrilla-costaleros` · Entrega: `ask-on-risk` · Runner: Vitest
   **Test de integración (`tests/domain/integracion.spec.ts`, superficie del padre).** El plan que genera el planificador para la cuadrilla de ejemplo pasa el catálogo completo de reglas: ningún hallazgo de error, y R4 sin avisos porque el reparto sale exacto.
   **Números:** 92 tests en verde, `tsc` sin errores, `eslint` limpio, `next build` genera `/`, `/pasos/[id]` y `/relevos`.
   **Commits:** `66b6f4d` (T22, contrato), `f1b24f4` (T23, reglas), `a138645` (T24, planificador) y `ff23a19` (test de integración).
+
+- **L25 — Decisiones del usuario sobre el plan, las fijaciones y la entrega (2026-11-15):**
+  **El plan se calcula al vuelo y se congela al entregar.** La app calcula el plan con el dominio cada vez que se abre el paso; al entregar, se guarda una copia de los tramos con su plantilla. Esto cambia el papel de la colección de relevos: deja de ser "el relevo en curso" y pasa a ser "el plan entregado", congelado.
+  **Las fijaciones manuales entran en este bloque (R6, que estaba pendiente de decisión desde L19).** El dominio las acepta, el planificador las respeta y una regla comprueba que se respetaron. La traducción sale del `pins` del simulador de la cuadrilla.
+  **La entrega se corta ahora en cadena de PRs.** La rama lleva 10.640 líneas sobre el primer commit y no hay remoto configurado. El usuario abre el repositorio en GitHub y el proyecto en Vercel; con el remoto se sube la rama y se abre la cadena de PRs.
+  **Lo que falta del usuario:** la URL del repositorio de GitHub (vacío, sin README) para configurar el remoto; el proyecto de Vercel con `DATABASE_URL` y `PAYLOAD_SECRET`; y un *personal access token* de Supabase, que es la vía para aplicar la migración base (T14) sin depender de IPv6: la Management API va por HTTPS y funciona desde esta máquina.
+  **Orden de este bloque:** T28 (fijaciones en el dominio) → T25 (colecciones con el modelo nuevo) → T26 (pantallas y tarjetas, la primera vez que la app importa el dominio) → T27 (MCP).
