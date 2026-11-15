@@ -79,6 +79,8 @@ Tres cosas que hay que respetar en esa cadena:
 
 - Es la conexión **directa** (puerto `5432`). La *agrupada* (el `pooler`, puerto `6543`) **no sirve** para este proyecto: el servidor responde `tenant/user postgres.<ref> not found`.
 - La contraseña va **URL-codificada**: si contiene `@` (u otros caracteres reservados) se escribe con su código (`%40` en lugar de `@`), porque la `@` está reservada en una URL.
+
+> **De donde sale `<CLAVE>`**: en Supabase -> tu proyecto -> **Project Settings -> Database -> Connection string -> URI**. La contrasena que corresponde a este proyecto **ya se roto** (el 15/11/2026, porque estaba escrita en este repositorio, que es publico): la nueva esta en el fichero `~/.supabase-rplantilla-password` de esta maquina, con permisos `600`. Si recreas el proyecto de Vercel, copiala de ahi.
 - El host (`db.auvjqkdiadvwdmelyf.supabase.co`) sólo resuelve por **IPv6**. En una red sin IPv6 (como la de algunos equipos) la conexión directa no llega; en Vercel funciona.
 
 **2. `PAYLOAD_SECRET`** — el secreto con el que la app firma sus sesiones y cookies. Generá uno con:
