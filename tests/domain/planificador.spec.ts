@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CODIGO_COSTALEROS_INSUFICIENTES,
+  CODIGO_FIJACION_IMPOSIBLE,
+  CODIGO_FIJACION_INVALIDA,
   CODIGO_ROTACION_IMPOSIBLE,
   ErrorDeDominio,
   MENSAJE_COSTALEROS_INSUFICIENTES,
@@ -407,5 +409,98 @@ describe('planificarRotacion', () => {
 
     expect(error).toBeInstanceOf(ErrorDeDominio);
     expect((error as ErrorDeDominio).codigo).toBe(CODIGO_ROTACION_IMPOSIBLE);
+  });
+
+  it('respects a costalero fixed inside in a tramo', () => {
+    const plan = planificarRotacion({
+      ...entradaBase(),
+      fijaciones: [{ costaleroId: 'a6', tramo: 3, estado: 'dentro' }],
+    });
+
+    expect(debajoDe(plan, 3, 'trab-paso-1-1')).toContain('a6');
+  });
+
+  it('respects a costalero fixed outside in a tramo', () => {
+    const plan = planificarRotacion({
+      ...entradaBase(),
+      fijaciones: [{ costaleroId: 'a6', tramo: 3, estado: 'fuera' }],
+    });
+
+    expect(debajoDe(plan, 3, 'trab-paso-1-1')).not.toContain('a6');
+  });
+
+  it('rejects a fijacion with a tramo outside the rotation', () => {
+    let error: unknown;
+
+    try {
+      planificarRotacion({
+        ...entradaBase(),
+        fijaciones: [{ costaleroId: 'a6', tramo: 13, estado: 'fuera' }],
+      });
+    } catch (capturado) {
+      error = capturado;
+    }
+
+    expect(error).toBeInstanceOf(ErrorDeDominio);
+    expect((error as ErrorDeDominio).codigo).toBe(CODIGO_FIJACION_INVALIDA);
+  });
+
+  it('rejects contradictory fijaciones of the same costalero in the same tramo', () => {
+    let error: unknown;
+
+    try {
+      planificarRotacion({
+        ...entradaBase(),
+        fijaciones: [
+          { costaleroId: 'a6', tramo: 3, estado: 'dentro' },
+          { costaleroId: 'a6', tramo: 3, estado: 'fuera' },
+        ],
+      });
+    } catch (capturado) {
+      error = capturado;
+    }
+
+    expect(error).toBeInstanceOf(ErrorDeDominio);
+    expect((error as ErrorDeDominio).codigo).toBe(CODIGO_FIJACION_INVALIDA);
+  });
+
+  it('fails when there are more costaleros fixed inside than posts', () => {
+    let error: unknown;
+
+    try {
+      planificarRotacion({
+        ...entradaBase(),
+        fijaciones: GRUPO_A.map((persona) => ({
+          costaleroId: persona.id,
+          tramo: 1,
+          estado: 'dentro' as const,
+        })),
+      });
+    } catch (capturado) {
+      error = capturado;
+    }
+
+    expect(error).toBeInstanceOf(ErrorDeDominio);
+    expect((error as ErrorDeDominio).codigo).toBe(CODIGO_FIJACION_IMPOSIBLE);
+  });
+
+  it('fails when a fixed outside costalero would exceed the maximum of consecutive rests', () => {
+    let error: unknown;
+
+    try {
+      planificarRotacion({
+        ...entradaBase(),
+        fijaciones: [1, 2, 3].map((tramo) => ({
+          costaleroId: 'a6',
+          tramo,
+          estado: 'fuera' as const,
+        })),
+      });
+    } catch (capturado) {
+      error = capturado;
+    }
+
+    expect(error).toBeInstanceOf(ErrorDeDominio);
+    expect((error as ErrorDeDominio).codigo).toBe(CODIGO_FIJACION_IMPOSIBLE);
   });
 });

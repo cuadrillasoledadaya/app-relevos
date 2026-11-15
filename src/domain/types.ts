@@ -146,6 +146,22 @@ export interface PuntoDeRelevo {
 /** Estado de un tramo. */
 export type EstadoTramo = 'planificado' | 'en_curso' | 'completado' | 'omitido'
 
+/** Estado de una fijación manual: el costalero queda dentro o fuera en ese tramo. */
+export type EstadoFijacion = 'dentro' | 'fuera'
+
+/**
+ * Fijación manual de un costalero en un tramo (regla R6).
+ *
+ * Es una decisión de la cuadrilla: "este tramo, este costalero va fuera". El
+ * planificador tiene que respetarla, y una regla comprueba que la respetó.
+ */
+export interface FijacionCostalero {
+  costaleroId: string
+  /** Tramo de la rotación de la trabajadera del costalero, de 1 a N. */
+  tramo: number
+  estado: EstadoFijacion
+}
+
 /** Asignación de un costalero a un puesto de una trabajadera en un tramo. */
 export interface AsignacionCostalero {
   costaleroId: string
@@ -233,6 +249,8 @@ export interface ContextoReglas {
   costaleros: Costalero[]
   /** Parámetros de la rotación; si no se dan, rigen los valores por defecto. */
   config?: ConfigRotacion
+  /** Fijaciones manuales que el plan tiene que respetar (regla R6). */
+  fijaciones?: FijacionCostalero[]
 }
 
 /**
@@ -259,4 +277,6 @@ export interface EntradaRotacion {
   puntos?: PuntoDeRelevo[]
   /** Parámetros de la rotación; si no se dan, rigen los valores por defecto. */
   config?: ConfigRotacion
+  /** Fijaciones manuales por tramo (regla R6). */
+  fijaciones?: FijacionCostalero[]
 }
