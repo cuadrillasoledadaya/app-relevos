@@ -72,13 +72,13 @@ En **Vercel** → tu proyecto → **Settings** → **Environment Variables**. Ag
 **1. `DATABASE_URL`** — la conexión a la base de datos.
 
 ```
-postgresql://postgres:1%40ChiquiDevil@db.auvjqkdiadvwdmelyf.supabase.co:5432/postgres
+postgresql://postgres.<ref>:<CLAVE>@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
 ```
 
 Tres cosas que hay que respetar en esa cadena:
 
 - Es la conexión **directa** (puerto `5432`). La *agrupada* (el `pooler`, puerto `6543`) **no sirve** para este proyecto: el servidor responde `tenant/user postgres.<ref> not found`.
-- La contraseña va **URL-codificada**: `1@ChiquiDevil` se escribe `1%40ChiquiDevil`, porque la `@` está reservada en una URL.
+- La contraseña va **URL-codificada**: si contiene `@` (u otros caracteres reservados) se escribe con su código (`%40` en lugar de `@`), porque la `@` está reservada en una URL.
 - El host (`db.auvjqkdiadvwdmelyf.supabase.co`) sólo resuelve por **IPv6**. En una red sin IPv6 (como la de algunos equipos) la conexión directa no llega; en Vercel funciona.
 
 **2. `PAYLOAD_SECRET`** — el secreto con el que la app firma sus sesiones y cookies. Generá uno con:
