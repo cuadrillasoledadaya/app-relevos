@@ -74,6 +74,7 @@ export interface Config {
     pasos: Paso;
     relevos: Relevo;
     'puntos-de-relevo': PuntosDeRelevo;
+    fijaciones: Fijacion;
     'payload-mcp-api-keys': PayloadMcpApiKey;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -88,6 +89,7 @@ export interface Config {
     pasos: PasosSelect<false> | PasosSelect<true>;
     relevos: RelevosSelect<false> | RelevosSelect<true>;
     'puntos-de-relevo': PuntosDeRelevoSelect<false> | PuntosDeRelevoSelect<true>;
+    fijaciones: FijacionesSelect<false> | FijacionesSelect<true>;
     'payload-mcp-api-keys': PayloadMcpApiKeysSelect<false> | PayloadMcpApiKeysSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -212,6 +214,14 @@ export interface Costalero {
    */
   cuadrilla: number | Cuadrilla;
   /**
+   * Identificador de la trabajadera del paso a la que pertenece el costalero, por ejemplo "trab-12-3". El costalero pertenece a una sola trabajadera durante todo el plan: no cambia de posición de un tramo a otro.
+   */
+  trabajadoraId: string;
+  /**
+   * Rol natural del costalero: el puesto que ocupa por naturaleza. Los pateros son de nivel 3, los fijadores de nivel 2 y los corrientes de nivel 1. Nadie puede ocupar un puesto dos niveles por encima o por debajo del suyo. No tiene valor por defecto: un rol inventado rompe el reparto por niveles de altura.
+   */
+  rol: 'patero-izquierdo' | 'patero-derecho' | 'fijador-izquierdo' | 'fijador-derecho' | 'corriente';
+  /**
    * Teléfono de contacto para los avisos de relevo.
    */
   telefono?: string | null;
@@ -224,7 +234,7 @@ export interface Costalero {
    */
   hombroPreferido?: ('izquierdo' | 'derecho') | null;
   /**
-   * Un costalero que no está disponible no puede recibir asignaciones en un relevo.
+   * Un costalero que no está disponible no rota: no recibe asignaciones en ningún tramo.
    */
   disponible?: boolean | null;
   updatedAt: string;
@@ -265,42 +275,57 @@ export interface Paso {
      */
     numero: number;
     lado: 'izquierda' | 'derecha';
-    tipo: 'centro' | 'cruz' | 'tambor' | 'puesto';
+    /**
+     * Tramos del recorrido que recorre la rotación de esta trabajadera. Es propio de cada trabajadera: por eso los descansos de cada una pueden salir exactos. Por defecto 12, los tramos del simulador de la cuadrilla.
+     */
+    tramos: number;
   }[];
   updatedAt: string;
   createdAt: string;
 }
 /**
+ * Planes entregados: la copia congelada de la rotación de un paso, con sus tramos y la plantilla de cada trabajadera.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "relevos".
  */
 export interface Relevo {
   id: number;
+  /**
+   * Paso al que pertenece el plan entregado.
+   */
   paso: number | Paso;
   /**
-   * Orden del relevo dentro del paso, empezando por 1.
+   * Tramos del plan, en orden. Cada tramo guarda el punto del recorrido, su estado y la plantilla de cada trabajadera.
    */
-  orden: number;
-  punto: number | PuntosDeRelevo;
-  /**
-   * Cuadrilla que entra en el paso en este relevo.
-   */
-  cuadrillaEntrante: number | Cuadrilla;
-  /**
-   * Cuadrilla que sale del paso en este relevo, si la hay.
-   */
-  cuadrillaSaliente?: (number | null) | Cuadrilla;
-  estado?: ('planificado' | 'en_curso' | 'completado' | 'omitido') | null;
-  /**
-   * Costaleros que cubren cada trabajadera del paso en este relevo.
-   */
-  asignaciones?:
+  tramos?:
     | {
-        costalero: number | Costalero;
         /**
-         * Identificador de la trabajadera del paso que cubre este costalero.
+         * Orden del tramo dentro del plan, empezando por 1.
          */
-        trabajaderaId: string;
+        orden: number;
+        /**
+         * Punto del recorrido en el que se entrega el tramo. Si el paso no tiene puntos de relevo, el tramo se identifica sólo por su orden.
+         */
+        punto?: (number | null) | PuntosDeRelevo;
+        estado?: ('planificado' | 'en_curso' | 'completado' | 'omitido') | null;
+        /**
+         * Costaleros que van debajo del paso en este tramo, con el puesto que ocupa cada uno en su trabajadera. Los costaleros que no aparecen descansan.
+         */
+        asignaciones?:
+          | {
+              costalero: number | Costalero;
+              /**
+               * Identificador de la trabajadera del paso donde va este costalero, por ejemplo "trab-12-3".
+               */
+              trabajadoraId: string;
+              /**
+               * Puesto que ocupa debajo del paso. En la primera y la última trabajadera del paso el puesto es de patero y en las del medio de costero.
+               */
+              puesto: 'patero-izquierdo' | 'patero-derecho' | 'fijador-izquierdo' | 'fijador-derecho' | 'corriente';
+              id?: string | null;
+            }[]
+          | null;
         id?: string | null;
       }[]
     | null;
@@ -325,6 +350,33 @@ export interface PuntosDeRelevo {
    * Orden del punto a lo largo del recorrido, empezando por 1.
    */
   orden: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Fijaciones manuales de la rotación: un costalero queda dentro o fuera del paso en un tramo.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fijaciones".
+ */
+export interface Fijacion {
+  id: number;
+  /**
+   * Paso al que pertenece la fijación.
+   */
+  paso: number | Paso;
+  /**
+   * Costalero al que se le fija el puesto en ese tramo.
+   */
+  costalero: number | Costalero;
+  /**
+   * Tramo de la rotación de la trabajadera del costalero, empezando por 1. Cada trabajadera rota con su propio número de tramos.
+   */
+  tramo: number;
+  /**
+   * Si el costalero va debajo del paso ("dentro") o si descansa ("fuera") en ese tramo.
+   */
+  estado: 'dentro' | 'fuera';
   updatedAt: string;
   createdAt: string;
 }
@@ -456,6 +508,24 @@ export interface PayloadMcpApiKey {
      */
     delete?: boolean | null;
   };
+  fijaciones?: {
+    /**
+     * Allow clients to find fijaciones.
+     */
+    find?: boolean | null;
+    /**
+     * Allow clients to create fijaciones.
+     */
+    create?: boolean | null;
+    /**
+     * Allow clients to update fijaciones.
+     */
+    update?: boolean | null;
+    /**
+     * Allow clients to delete fijaciones.
+     */
+    delete?: boolean | null;
+  };
   updatedAt: string;
   createdAt: string;
   enableAPIKey?: boolean | null;
@@ -511,6 +581,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'puntos-de-relevo';
         value: number | PuntosDeRelevo;
+      } | null)
+    | ({
+        relationTo: 'fijaciones';
+        value: number | Fijacion;
       } | null)
     | ({
         relationTo: 'payload-mcp-api-keys';
@@ -610,6 +684,8 @@ export interface CuadrillasSelect<T extends boolean = true> {
 export interface CostalerosSelect<T extends boolean = true> {
   nombre?: T;
   cuadrilla?: T;
+  trabajadoraId?: T;
+  rol?: T;
   telefono?: T;
   alturaCm?: T;
   hombroPreferido?: T;
@@ -632,7 +708,7 @@ export interface PasosSelect<T extends boolean = true> {
         id?: T;
         numero?: T;
         lado?: T;
-        tipo?: T;
+        tramos?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -643,16 +719,20 @@ export interface PasosSelect<T extends boolean = true> {
  */
 export interface RelevosSelect<T extends boolean = true> {
   paso?: T;
-  orden?: T;
-  punto?: T;
-  cuadrillaEntrante?: T;
-  cuadrillaSaliente?: T;
-  estado?: T;
-  asignaciones?:
+  tramos?:
     | T
     | {
-        costalero?: T;
-        trabajaderaId?: T;
+        orden?: T;
+        punto?: T;
+        estado?: T;
+        asignaciones?:
+          | T
+          | {
+              costalero?: T;
+              trabajadoraId?: T;
+              puesto?: T;
+              id?: T;
+            };
         id?: T;
       };
   updatedAt?: T;
@@ -666,6 +746,18 @@ export interface PuntosDeRelevoSelect<T extends boolean = true> {
   nombre?: T;
   calle?: T;
   orden?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fijaciones_select".
+ */
+export interface FijacionesSelect<T extends boolean = true> {
+  paso?: T;
+  costalero?: T;
+  tramo?: T;
+  estado?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -718,6 +810,14 @@ export interface PayloadMcpApiKeysSelect<T extends boolean = true> {
         delete?: T;
       };
   puntosDeRelevo?:
+    | T
+    | {
+        find?: T;
+        create?: T;
+        update?: T;
+        delete?: T;
+      };
+  fijaciones?:
     | T
     | {
         find?: T;

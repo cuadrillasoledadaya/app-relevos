@@ -5,6 +5,10 @@ import { readCuadrillaData, writeCuadrillaData } from './Users'
 /**
  * Pasos: the paso that is carried and the working positions under it.
  *
+ * Each working position has its own group of costaleros and rotates on its
+ * own, tramo a tramo: the number of `tramos` is a property of the working
+ * position, not of the paso.
+ *
  * Access rule: `admin` has full access; `jefe` may create, update and delete
  * pasos; `costalero` may only read them.
  */
@@ -96,16 +100,17 @@ export const Pasos: CollectionConfig = {
           ],
         },
         {
-          name: 'tipo',
-          type: 'select',
+          name: 'tramos',
+          type: 'number',
           required: true,
-          label: 'Tipo',
-          options: [
-            { label: 'Centro', value: 'centro' },
-            { label: 'Cruz', value: 'cruz' },
-            { label: 'Tambor', value: 'tambor' },
-            { label: 'Puesto', value: 'puesto' },
-          ],
+          min: 1,
+          defaultValue: 12,
+          label: 'Tramos',
+          admin: {
+            step: 1,
+            description:
+              'Tramos del recorrido que recorre la rotación de esta trabajadera. Es propio de cada trabajadera: por eso los descansos de cada una pueden salir exactos. Por defecto 12, los tramos del simulador de la cuadrilla.',
+          },
         },
       ],
     },

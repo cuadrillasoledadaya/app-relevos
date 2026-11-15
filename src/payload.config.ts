@@ -5,7 +5,7 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
-import { Cuadrillas, Costaleros, Pasos, PuntosDeRelevo, Relevos, Users } from './collections'
+import { Cuadrillas, Costaleros, Fijaciones, Pasos, PuntosDeRelevo, Relevos, Users } from './collections'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -44,7 +44,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Cuadrillas, Costaleros, Pasos, Relevos, PuntosDeRelevo],
+  collections: [Users, Cuadrillas, Costaleros, Pasos, Relevos, PuntosDeRelevo, Fijaciones],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || 'SOLO-DESARROLLO-cambiar-en-produccion',
   typescript: {
@@ -71,6 +71,7 @@ export default buildConfig({
         pasos: { enabled: true },
         relevos: { enabled: true },
         'puntos-de-relevo': { enabled: true },
+        fijaciones: { enabled: true },
       },
     }),
   ],

@@ -4,8 +4,8 @@ import type { Access, CollectionConfig, PayloadRequest, Where } from 'payload'
  * Accounts of the cuadrilla.
  *
  * This module also hosts the shared role helpers: the role lives on the user,
- * and the barrel of `src/collections` only re-exports the six collections, so
- * every collection resolves its access rules from here.
+ * and the barrel of `src/collections` only re-exports the seven collections,
+ * so every collection resolves its access rules from here.
  */
 
 /** Roles understood by the admin panel and by the MCP server. */
