@@ -9,6 +9,7 @@ import {
   COSTALERO_NO_DISPONIBLE,
   COSTALERO_REPETIDO_EN_TRAMO,
   DESCANSO_DESIGUAL,
+  FIJACION_NO_CUMPLIDA,
   FUERA_EN_PRIMERO_Y_ULTIMO,
   PUESTOS_MAL_CUBIERTOS,
   PUNTO_DE_RELEVO_DUPLICADO,
@@ -23,6 +24,7 @@ import type {
   ConfigRotacion,
   ContextoReglas,
   Costalero,
+  FijacionCostalero,
   Paso,
   PlanDeRotacion,
   TramoPlanificado,
@@ -182,6 +184,7 @@ interface OpcionesContexto {
   paso?: Paso;
   costaleros?: Costalero[];
   config?: ConfigRotacion;
+  fijaciones?: FijacionCostalero[];
 }
 
 function contextoDe(
@@ -195,11 +198,12 @@ function contextoDe(
     plan,
     costaleros: opciones.costaleros ?? costaleros,
     ...(opciones.config === undefined ? {} : { config: opciones.config }),
+    ...(opciones.fijaciones === undefined ? {} : { fijaciones: opciones.fijaciones }),
   };
 }
 
 describe('catalogo v2 de reglas', () => {
-  it('registers exactly the eleven rules of the working position model', () => {
+  it('registers exactly the twelve rules of the working position model', () => {
     expect(REGLAS_V2.map((regla) => regla.id)).toEqual([
       'TRAMO_SIN_PUNTO',
       'PUNTO_DE_RELEVO_DUPLICADO',
@@ -212,11 +216,12 @@ describe('catalogo v2 de reglas', () => {
       'DESCANSO_DESIGUAL',
       'FUERA_EN_PRIMERO_Y_ULTIMO',
       'PUESTOS_MAL_CUBIERTOS',
+      'FIJACION_NO_CUMPLIDA',
     ]);
   });
 
-  it('declares nine blocking rules and two informative ones', () => {
-    expect(REGLAS_V2.filter((regla) => regla.severidad === 'error')).toHaveLength(9);
+  it('declares ten blocking rules and two informative ones', () => {
+    expect(REGLAS_V2.filter((regla) => regla.severidad === 'error')).toHaveLength(10);
     expect(REGLAS_V2.filter((regla) => regla.severidad === 'warning')).toHaveLength(2);
     expect(PUNTO_DE_RELEVO_DUPLICADO.severidad).toBe('warning');
     expect(DESCANSO_DESIGUAL.severidad).toBe('warning');
@@ -771,5 +776,45 @@ describe('rotacion valida', () => {
 
     expect(resultado.hallazgos).toEqual([]);
     expect(resultado.valido).toBe(true);
+  });
+});
+
+describe('FIJACION_NO_CUMPLIDA', () => {
+  it('reports a costalero fixed inside who is not under the paso', () => {
+    const hallazgos = FIJACION_NO_CUMPLIDA.evaluar(
+      contextoDe([tramo()], { fijaciones: [{ costaleroId: 'k6', tramo: 1, estado: 'dentro' }] }),
+    );
+
+    expect(hallazgos).toHaveLength(1);
+    expect(hallazgos[0].reglaId).toBe('FIJACION_NO_CUMPLIDA');
+    expect(hallazgos[0].severidad).toBe('error');
+    expect(hallazgos[0].mensaje).toBe(
+      'El costalero k6 está fijado dentro en el tramo 1, pero no va debajo del paso.',
+    );
+  });
+
+  it('reports a costalero fixed outside who is under the paso', () => {
+    const hallazgos = FIJACION_NO_CUMPLIDA.evaluar(
+      contextoDe([tramo()], { fijaciones: [{ costaleroId: 'k1', tramo: 1, estado: 'fuera' }] }),
+    );
+
+    expect(hallazgos).toHaveLength(1);
+    expect(hallazgos[0].reglaId).toBe('FIJACION_NO_CUMPLIDA');
+    expect(hallazgos[0].mensaje).toBe(
+      'El costalero k1 está fijado fuera en el tramo 1, pero va debajo del paso.',
+    );
+  });
+
+  it('accepts the fijaciones that the plan respects', () => {
+    const hallazgos = FIJACION_NO_CUMPLIDA.evaluar(
+      contextoDe([tramo()], {
+        fijaciones: [
+          { costaleroId: 'k1', tramo: 1, estado: 'dentro' },
+          { costaleroId: 'k6', tramo: 1, estado: 'fuera' },
+        ],
+      }),
+    );
+
+    expect(hallazgos).toEqual([]);
   });
 });

@@ -28,9 +28,13 @@
 
 import {
   CODIGO_COSTALEROS_INSUFICIENTES,
+  CODIGO_FIJACION_IMPOSIBLE,
+  CODIGO_FIJACION_INVALIDA,
   CODIGO_ROTACION_IMPOSIBLE,
   ErrorDeDominio,
   MENSAJE_COSTALEROS_INSUFICIENTES,
+  MENSAJE_FIJACION_IMPOSIBLE,
+  MENSAJE_FIJACION_INVALIDA,
   MENSAJE_ROTACION_IMPOSIBLE,
 } from './errors'
 import { CONFIG_ROTACION_POR_DEFECTO, NIVEL_ROL, PUESTOS_TRABAJADERA } from './types'
@@ -38,6 +42,7 @@ import type {
   AsignacionCostalero,
   Costalero,
   EntradaRotacion,
+  FijacionCostalero,
   PlanDeRotacion,
   PuntoDeRelevo,
   PuestoCostalero,
@@ -86,6 +91,7 @@ export function planificarRotacion(entrada: EntradaRotacion): PlanDeRotacion {
 
   const grupos = agruparPorTrabajadera(entrada.costaleros)
   const trabajaderas = [...entrada.paso.trabajaderas].sort((a, b) => a.numero - b.numero)
+  const fijaciones = validarFijaciones(entrada)
 
   // Cada trabajadera rota con su propio estado: sus tramos son suyos.
   const rotaciones = new Map<string, Map<number, AsignacionCostalero[]>>()
@@ -93,7 +99,13 @@ export function planificarRotacion(entrada: EntradaRotacion): PlanDeRotacion {
   for (const trabajadera of trabajaderas) {
     rotaciones.set(
       trabajadera.id,
-      rotarTrabajadera(trabajadera, grupos.get(trabajadera.id) ?? [], K, M),
+      rotarTrabajadera(
+        trabajadera,
+        grupos.get(trabajadera.id) ?? [],
+        K,
+        M,
+        fijaciones.get(trabajadera.id) ?? [],
+      ),
     )
   }
 
@@ -122,6 +134,62 @@ export function planificarRotacion(entrada: EntradaRotacion): PlanDeRotacion {
   return { pasoId: entrada.paso.id, tramos }
 }
 
+/**
+ * Valida las fijaciones manuales y las reparte por trabajadera.
+ *
+ * Una fijación tiene que apuntar a un costalero del paso, a un tramo de la
+ * rotación de su trabajadera y a un estado. Dos fijaciones del mismo
+ * costalero en el mismo tramo con estados distintos son contradictorias.
+ */
+function validarFijaciones(entrada: EntradaRotacion): Map<string, FijacionCostalero[]> {
+  const porTrabajadera = new Map<string, FijacionCostalero[]>()
+  const costalerosPorId = new Map(entrada.costaleros.map((persona) => [persona.id, persona]))
+  const trabajaderasPorId = new Map(entrada.paso.trabajaderas.map((t) => [t.id, t]))
+  const vistas = new Map<string, string>()
+
+  for (const fijacion of entrada.fijaciones ?? []) {
+    const persona = costalerosPorId.get(fijacion.costaleroId)
+
+    if (!persona) {
+      throw errorFijacion(`no hay ningún costalero con el identificador ${fijacion.costaleroId}`)
+    }
+
+    const trabajadera = trabajaderasPorId.get(persona.trabajaderaId)
+
+    if (!trabajadera) {
+      throw errorFijacion(
+        `el costalero ${persona.id} pertenece a una trabajadera que no está en el paso`,
+      )
+    }
+
+    if (
+      !Number.isInteger(fijacion.tramo) ||
+      fijacion.tramo < 1 ||
+      fijacion.tramo > trabajadera.tramos
+    ) {
+      throw errorFijacion(
+        `el tramo ${fijacion.tramo} está fuera de la rotación de la trabajadera ${trabajadera.numero}`,
+      )
+    }
+
+    const clave = `${fijacion.costaleroId}:${fijacion.tramo}`
+    const estadoPrevio = vistas.get(clave)
+
+    if (estadoPrevio && estadoPrevio !== fijacion.estado) {
+      throw errorFijacion(
+        `el costalero ${fijacion.costaleroId} está fijado dos veces en el tramo ${fijacion.tramo}, con estados distintos`,
+      )
+    }
+
+    vistas.set(clave, fijacion.estado)
+
+    const lista = porTrabajadera.get(persona.trabajaderaId) ?? []
+    lista.push(fijacion)
+    porTrabajadera.set(persona.trabajaderaId, lista)
+  }
+
+  return porTrabajadera
+}
 /**
  * Agrupa los costaleros disponibles por trabajadera y ordena cada grupo por
  * identificador, para que el reparto no dependa del orden de la entrada.
@@ -157,6 +225,7 @@ function rotarTrabajadera(
   grupo: Costalero[],
   K: number,
   M: number,
+  fijaciones: FijacionCostalero[],
 ): Map<number, AsignacionCostalero[]> {
   const n = grupo.length
 
@@ -166,6 +235,7 @@ function rotarTrabajadera(
 
   const descansosPorTramo = n - K
   const estado = new Map<string, EstadoCostalero>()
+  const nivelPorId = new Map(grupo.map((persona) => [persona.id, nivelDe(persona)]))
 
   for (const persona of grupo) {
     estado.set(persona.id, { descansos: 0, descansosSeguidos: 0, bajo: 0 })
@@ -186,6 +256,67 @@ function rotarTrabajadera(
   let descansaronEnElPrimerTramo: string[] = []
 
   for (let orden = 1; orden <= Math.max(0, trabajadera.tramos); orden += 1) {
+    // 0. Fijaciones manuales de este tramo (R6): el que está fijo dentro va
+    //    debajo del paso y el que está fijo fuera descansa.
+    const fijadosDentro: string[] = []
+    const fijadosFuera: string[] = []
+
+    for (const fijacion of fijaciones) {
+      if (fijacion.tramo !== orden) {
+        continue
+      }
+
+      if (fijacion.estado === 'dentro') {
+        fijadosDentro.push(fijacion.costaleroId)
+      } else {
+        fijadosFuera.push(fijacion.costaleroId)
+      }
+    }
+
+    if (fijadosDentro.length > K) {
+      throw errorFijacionImposible(
+        trabajadera.id,
+        orden,
+        `hay ${fijadosDentro.length} costaleros fijados debajo y sólo caben ${K}`,
+      )
+    }
+
+    if (fijadosFuera.length > descansosPorTramo) {
+      throw errorFijacionImposible(
+        trabajadera.id,
+        orden,
+        `hay ${fijadosFuera.length} costaleros fijados fuera y sólo descansan ${descansosPorTramo}`,
+      )
+    }
+
+    for (const costaleroId of fijadosFuera) {
+      if (estado.get(costaleroId)!.descansosSeguidos >= M) {
+        throw errorFijacionImposible(
+          trabajadera.id,
+          orden,
+          `el costalero ${costaleroId} superaría ${M} tramos seguidos fuera`,
+        )
+      }
+    }
+
+    const esPrimerTramo = orden === 1
+
+    if (esPrimerTramo) {
+      // La sombra de R7: lo que descansa en el primer tramo vuelve a entrar en
+      // el último, así que tampoco puede descansar ahí más gente de la que
+      // cabe bajo el paso.
+      const nivel1Fuera = fijadosFuera.filter((id) => nivelPorId.get(id) === 1).length
+      const nivel3Fuera = fijadosFuera.filter((id) => nivelPorId.get(id) === 3).length
+
+      if (nivel1Fuera > MAX_COSTALEROS_NIVEL_1_DEBAJO || nivel3Fuera > MAX_COSTALEROS_NIVEL_3_DEBAJO) {
+        throw errorFijacionImposible(
+          trabajadera.id,
+          orden,
+          'las fijaciones del primer tramo no dejan sitio bajo el paso para el último',
+        )
+      }
+    }
+
     // 1. Quién tiene que volver a entrar porque alcanzó la racha máxima de
     //    descansos (R3): es obligatorio.
     const forzados = new Set<string>()
@@ -202,20 +333,35 @@ function rotarTrabajadera(
 
     if (trabajadera.tramos > 1 && orden === trabajadera.tramos) {
       for (const costaleroId of descansaronEnElPrimerTramo) {
+        if (fijadosFuera.includes(costaleroId)) {
+          throw errorFijacionImposible(
+            trabajadera.id,
+            orden,
+            `el costalero ${costaleroId} salió fuera en el primer tramo y no puede repetir fuera en el último`,
+          )
+        }
+
         vuelven.add(costaleroId)
       }
     }
 
+    // Los fijados dentro y los que vuelven están bajo el paso; los fijados
+    // fuera descansan y no pueden ser candidatos a descansar.
+    const bajoObligatorio = new Set<string>([...fijadosDentro, ...forzados, ...vuelven])
+    const descansanFijos = new Set<string>(fijadosFuera)
+
     // 3. Del resto, descansa primero quien menos ha descansado en total.
     const candidatos = grupo
-      .filter((persona) => !forzados.has(persona.id) && !vuelven.has(persona.id))
+      .filter((persona) => !bajoObligatorio.has(persona.id) && !descansanFijos.has(persona.id))
       .sort((a, b) => compararPorJusticia(a, b, estado))
 
-    if (candidatos.length < descansosPorTramo) {
-      throw errorImposible(
+    const faltan = descansosPorTramo - fijadosFuera.length
+
+    if (candidatos.length < faltan) {
+      throw errorFijacionImposible(
         trabajadera.id,
         orden,
-        'las reglas de descanso no permiten completar el reparto de descansos',
+        'las fijaciones y la regla de descansos seguidos impiden completar el reparto',
       )
     }
 
@@ -223,8 +369,6 @@ function rotarTrabajadera(
     // en el último (R7), así que los que descansan en el primer tramo quedan
     // bajo el paso en el último. Por eso, en el primer tramo no puede
     // descansar más gente de un nivel de la que cabe bajo el paso.
-    const esPrimerTramo = orden === 1
-
     const descansan = elegirDescansos(
       candidatos,
       descansosPorTramo,
@@ -232,6 +376,8 @@ function rotarTrabajadera(
       minimoNivel3,
       esPrimerTramo ? MAX_COSTALEROS_NIVEL_1_DEBAJO : Number.POSITIVE_INFINITY,
       esPrimerTramo ? MAX_COSTALEROS_NIVEL_3_DEBAJO : Number.POSITIVE_INFINITY,
+      fijadosFuera,
+      nivelPorId,
       trabajadera.id,
       orden,
     )
@@ -284,11 +430,13 @@ function elegirDescansos(
   minimoNivel3: number,
   maximoNivel1: number,
   maximoNivel3: number,
+  fijadosFuera: string[],
+  nivelPorId: Map<string, number>,
   trabajaderaId: string,
   orden: number,
 ): Set<string> {
-  const descansan = new Set<string>()
-  const nivelPorId = new Map(candidatos.map((persona) => [persona.id, nivelDe(persona)]))
+  // Los que están fijados fuera ya descansan: cuentan desde el principio.
+  const descansan = new Set<string>(fijadosFuera)
 
   for (const [nivel, minimo, maximo] of [
     [1, minimoNivel1, maximoNivel1],
@@ -304,11 +452,15 @@ function elegirDescansos(
 
     const delNivel = candidatos.filter((persona) => nivelDe(persona) === nivel)
 
-    let descansadosDelNivel = 0
+    let descansadosDelNivel = descansadosDeNivel(descansan, nivelPorId, nivel)
 
     for (const candidato of delNivel) {
       if (descansadosDelNivel >= minimo) {
         break
+      }
+
+      if (descansan.has(candidato.id)) {
+        continue
       }
 
       descansan.add(candidato.id)
@@ -328,7 +480,8 @@ function elegirDescansos(
     }
 
     const nivel = nivelDe(candidato)
-    const maximo = nivel === 1 ? maximoNivel1 : nivel === 3 ? maximoNivel3 : Number.POSITIVE_INFINITY
+    const maximo =
+      nivel === 1 ? maximoNivel1 : nivel === 3 ? maximoNivel3 : Number.POSITIVE_INFINITY
 
     if (descansadosDeNivel(descansan, nivelPorId, nivel) >= maximo) {
       continue
@@ -510,5 +663,22 @@ function errorImposible(trabajaderaId: string, orden: number, motivo: string): E
   return new ErrorDeDominio(
     CODIGO_ROTACION_IMPOSIBLE,
     `${MENSAJE_ROTACION_IMPOSIBLE} Trabajadera ${trabajaderaId}, tramo ${orden}: ${motivo}.`,
+  )
+}
+
+/** Error de dominio para una fijación que no se puede aplicar. */
+function errorFijacion(motivo: string): ErrorDeDominio {
+  return new ErrorDeDominio(CODIGO_FIJACION_INVALIDA, `${MENSAJE_FIJACION_INVALIDA} ${motivo}.`)
+}
+
+/** Error de dominio para un reparto que no puede respetar las fijaciones. */
+function errorFijacionImposible(
+  trabajaderaId: string,
+  orden: number,
+  motivo: string,
+): ErrorDeDominio {
+  return new ErrorDeDominio(
+    CODIGO_FIJACION_IMPOSIBLE,
+    `${MENSAJE_FIJACION_IMPOSIBLE} Trabajadera ${trabajaderaId}, tramo ${orden}: ${motivo}.`,
   )
 }

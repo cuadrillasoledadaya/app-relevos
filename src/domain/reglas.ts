@@ -666,7 +666,60 @@ export const PUESTOS_MAL_CUBIERTOS: ReglaCatalogo = {
 }
 
 /**
- * Catálogo v2: las once reglas del modelo por trabajadera.
+ * Las fijaciones manuales se respetan (regla R6 de la cuadrilla): el costalero
+ * fijo dentro del paso va debajo del paso y el que está fijo fuera descansa.
+ */
+export const FIJACION_NO_CUMPLIDA: ReglaCatalogo = {
+  id: 'FIJACION_NO_CUMPLIDA',
+  severidad: 'error',
+  descripcion: 'Las fijaciones manuales se respetan en el tramo que fijan.',
+  mensaje: 'Las fijaciones manuales tienen que respetarse en el tramo que fijan.',
+  evaluar(contexto: ContextoReglas): Hallazgo[] {
+    const hallazgos: Hallazgo[] = []
+    const tramos = tramosOrdenados(contexto)
+
+    for (const fijacion of contexto.fijaciones ?? []) {
+      const tramo = tramos.find((candidato) => candidato.orden === fijacion.tramo)
+
+      if (!tramo) {
+        continue
+      }
+
+      const asignado = tieneAsignacion(tramo, fijacion.costaleroId)
+
+      if (fijacion.estado === 'dentro' && !asignado) {
+        hallazgos.push({
+          reglaId: FIJACION_NO_CUMPLIDA.id,
+          severidad: 'error',
+          mensaje: `El costalero ${fijacion.costaleroId} está fijado dentro en el tramo ${tramo.orden}, pero no va debajo del paso.`,
+          contexto: {
+            costaleroId: fijacion.costaleroId,
+            orden: tramo.orden,
+            estado: fijacion.estado,
+          },
+        })
+      }
+
+      if (fijacion.estado === 'fuera' && asignado) {
+        hallazgos.push({
+          reglaId: FIJACION_NO_CUMPLIDA.id,
+          severidad: 'error',
+          mensaje: `El costalero ${fijacion.costaleroId} está fijado fuera en el tramo ${tramo.orden}, pero va debajo del paso.`,
+          contexto: {
+            costaleroId: fijacion.costaleroId,
+            orden: tramo.orden,
+            estado: fijacion.estado,
+          },
+        })
+      }
+    }
+
+    return hallazgos
+  },
+};
+
+/**
+ * Catálogo v2: las doce reglas del modelo por trabajadera.
  *
  * Es el punto de registro: una regla nueva se añade a esta lista (o se
  * registra en otra lista que se pase a `crearMotor`) sin tocar el motor.
@@ -683,6 +736,7 @@ export const REGLAS_V2: ReglaCatalogo[] = [
   DESCANSO_DESIGUAL,
   FUERA_EN_PRIMERO_Y_ULTIMO,
   PUESTOS_MAL_CUBIERTOS,
+  FIJACION_NO_CUMPLIDA,
 ]
 
 /**

@@ -32,6 +32,20 @@ export const CODIGO_ROTACION_IMPOSIBLE = 'ROTACION_IMPOSIBLE'
 export const MENSAJE_ROTACION_IMPOSIBLE =
   'No hay un reparto de la rotación que respete las reglas de descansos y de puestos.'
 
+/** Código de error: una fijación manual no se puede aplicar. */
+export const CODIGO_FIJACION_INVALIDA = 'FIJACION_INVALIDA'
+
+/** Mensaje asociado a `CODIGO_FIJACION_INVALIDA`. */
+export const MENSAJE_FIJACION_INVALIDA =
+  'Una fijación manual no se puede aplicar: el costalero, el tramo o el estado no son válidos.'
+
+/** Código de error: no hay un reparto que respete las fijaciones manuales. */
+export const CODIGO_FIJACION_IMPOSIBLE = 'FIJACION_IMPOSIBLE'
+
+/** Mensaje asociado a `CODIGO_FIJACION_IMPOSIBLE`. */
+export const MENSAJE_FIJACION_IMPOSIBLE =
+  'No hay un reparto de la rotación que respete las fijaciones manuales.'
+
 /** Error de dominio con código estable y mensaje para la persona usuaria. */
 export class ErrorDeDominio extends Error {
   readonly codigo: string
