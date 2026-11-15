@@ -2,173 +2,143 @@ import { describe, expect, it } from 'vitest';
 
 import { crearMotor } from '../../src/domain/motor';
 import { crearPaso } from '../../src/domain/paso';
-import { REGLAS_V1 } from '../../src/domain/reglas';
 import type {
   ContextoReglas,
   Costalero,
-  Cuadrilla,
   Paso,
-  PlanDeRelevo,
+  PlanDeRotacion,
   Regla,
-  RelevoPlanificado,
+  TramoPlanificado,
 } from '../../src/domain/types';
 
-const cuadrillas: Cuadrilla[] = [
-  { id: 'c1', nombre: 'Cuadrilla Uno' },
-  { id: 'c2', nombre: 'Cuadrilla Dos' },
-];
-
 const costaleros: Costalero[] = [
-  { id: 'k1', nombre: 'Ana', cuadrillaId: 'c1', disponible: true },
-  { id: 'k2', nombre: 'Beto', cuadrillaId: 'c1', disponible: true },
-  { id: 'k3', nombre: 'Carla', cuadrillaId: 'c2', disponible: true },
-  { id: 'k4', nombre: 'Dani', cuadrillaId: 'c2', disponible: true },
+  {
+    id: 'k1',
+    nombre: 'Ana',
+    cuadrillaId: 'c1',
+    trabajaderaId: 'trab-paso-1-1',
+    rol: 'patero-izquierdo',
+    disponible: true,
+  },
+  {
+    id: 'k2',
+    nombre: 'Beto',
+    cuadrillaId: 'c1',
+    trabajaderaId: 'trab-paso-1-1',
+    rol: 'patero-derecho',
+    disponible: true,
+  },
 ];
 
-function crearPasoDePrueba(numeroTrabajaderas: number): Paso {
-  const entrada = {
-    id: 'paso-1',
-    nombre: 'Paso de prueba',
-    cuadrillaId: 'c1',
-    numeroTrabajaderas,
-  };
+const paso: Paso = crearPaso({
+  id: 'paso-1',
+  nombre: 'Paso de prueba',
+  cuadrillaId: 'c1',
+  numeroTrabajaderas: 1,
+});
 
-  return crearPaso(entrada);
-}
-
-const paso = crearPasoDePrueba(2);
-
-function relevo(overrides: Partial<RelevoPlanificado> = {}): RelevoPlanificado {
+function tramo(overrides: Partial<TramoPlanificado> = {}): TramoPlanificado {
   return {
     orden: 1,
     puntoId: 'p1',
-    cuadrillaEntranteId: 'c1',
     asignaciones: [
-      { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-1' },
-      { costaleroId: 'k2', trabajaderaId: 'trab-paso-1-2' },
+      { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-1', puesto: 'patero-izquierdo' },
+      { costaleroId: 'k2', trabajaderaId: 'trab-paso-1-1', puesto: 'patero-derecho' },
     ],
     ...overrides,
   };
 }
 
-function contextoDe(relevos: RelevoPlanificado[]): ContextoReglas {
-  const plan: PlanDeRelevo = { pasoId: paso.id, relevos };
+function contextoDe(tramos: TramoPlanificado[]): ContextoReglas {
+  const plan: PlanDeRotacion = { pasoId: paso.id, tramos };
 
-  return { paso, plan, cuadrillas, costaleros };
+  return { paso, plan, costaleros };
 }
+
+const reglaSinHallazgos: Regla = {
+  id: 'REGLA_SIN_HALLAZGOS',
+  severidad: 'error',
+  descripcion: 'Regla que nunca encuentra nada.',
+  evaluar: () => [],
+};
+
+const reglaConError: Regla = {
+  id: 'REGLA_CON_ERROR',
+  severidad: 'error',
+  descripcion: 'Regla que siempre encuentra un error.',
+  evaluar: () => [
+    {
+      reglaId: 'REGLA_CON_ERROR',
+      severidad: 'error',
+      mensaje: 'La regla de error se ha cumplido.',
+    },
+  ],
+};
+
+const reglaConAviso: Regla = {
+  id: 'REGLA_CON_AVISO',
+  severidad: 'warning',
+  descripcion: 'Regla que siempre encuentra un aviso.',
+  evaluar: () => [
+    {
+      reglaId: 'REGLA_CON_AVISO',
+      severidad: 'error',
+      mensaje: 'La regla de aviso solo informa.',
+    },
+  ],
+};
 
 describe('crearMotor', () => {
   it('is valid and free of findings when the context breaks no rule', () => {
-    const resultado = crearMotor(REGLAS_V1).evaluar(contextoDe([relevo()]));
+    const resultado = crearMotor([reglaSinHallazgos]).evaluar(contextoDe([tramo()]));
 
     expect(resultado.hallazgos).toEqual([]);
     expect(resultado.valido).toBe(true);
   });
 
   it('is invalid when a rule reports an error finding', () => {
-    const resultado = crearMotor(REGLAS_V1).evaluar(
-      contextoDe([relevo({ cuadrillaEntranteId: '' })]),
-    );
+    const resultado = crearMotor([reglaConError]).evaluar(contextoDe([tramo()]));
 
     expect(resultado.valido).toBe(false);
     expect(resultado.hallazgos.some((hallazgo) => hallazgo.severidad === 'error')).toBe(true);
   });
 
   it('stays valid when the only finding is a warning', () => {
-    const resultado = crearMotor(REGLAS_V1).evaluar(
-      contextoDe([
-        relevo({ orden: 1, puntoId: 'p1', cuadrillaEntranteId: 'c1' }),
-        relevo({
-          orden: 2,
-          puntoId: 'p1',
-          cuadrillaEntranteId: 'c2',
-          asignaciones: [
-            { costaleroId: 'k3', trabajaderaId: 'trab-paso-1-1' },
-            { costaleroId: 'k4', trabajaderaId: 'trab-paso-1-2' },
-          ],
-        }),
-      ]),
-    );
+    const resultado = crearMotor([reglaConAviso]).evaluar(contextoDe([tramo()]));
 
     expect(resultado.valido).toBe(true);
     expect(resultado.hallazgos).toHaveLength(1);
-    expect(resultado.hallazgos[0].reglaId).toBe('PUNTO_DE_RELEVO_DUPLICADO');
+    expect(resultado.hallazgos[0].reglaId).toBe('REGLA_CON_AVISO');
     expect(resultado.hallazgos[0].severidad).toBe('warning');
   });
 
   it('aggregates the findings of every rule that is broken', () => {
-    const resultado = crearMotor(REGLAS_V1).evaluar(
-      contextoDe([
-        relevo({
-          puntoId: '',
-          cuadrillaEntranteId: 'c1',
-          asignaciones: [{ costaleroId: 'k3', trabajaderaId: 'trab-paso-1-1' }],
-        }),
-        relevo({
-          orden: 2,
-          puntoId: 'p2',
-          cuadrillaEntranteId: 'c1',
-          asignaciones: [
-            { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-1' },
-            { costaleroId: 'k1', trabajaderaId: 'trab-paso-1-2' },
-          ],
-        }),
-      ]),
-    );
+    const resultado = crearMotor([reglaConError, reglaConAviso]).evaluar(contextoDe([tramo()]));
 
     expect(resultado.valido).toBe(false);
     expect(resultado.hallazgos.map((hallazgo) => hallazgo.reglaId)).toEqual([
-      'RELEVO_SIN_PUNTO',
-      'TRABAJADERA_SIN_CUBRIR',
-      'COSTALERO_FUERA_DE_CUADRILLA',
-      'COSTALERO_REPETIDO_EN_RELEVO',
-      'CUADRILLA_RELEVA_DOS_VECES_SEGUIDO',
+      'REGLA_CON_ERROR',
+      'REGLA_CON_AVISO',
     ]);
   });
 
   it('evaluates a rule registered later without any change in the engine', () => {
-    const reglaNueva: Regla = {
-      id: 'REGLA_DE_PRUEBA',
-      severidad: 'error',
-      descripcion: 'Regla registrada despues del motor.',
-      evaluar: () => [
-        {
-          reglaId: 'REGLA_DE_PRUEBA',
-          severidad: 'error',
-          mensaje: 'La regla de prueba se ha cumplido.',
-        },
-      ],
-    };
-
-    const motor = crearMotor([...REGLAS_V1, reglaNueva]);
-    const resultado = motor.evaluar(contextoDe([relevo()]));
+    const motor = crearMotor([reglaSinHallazgos, reglaConError]);
+    const resultado = motor.evaluar(contextoDe([tramo()]));
 
     expect(resultado.valido).toBe(false);
-    expect(resultado.hallazgos.map((hallazgo) => hallazgo.reglaId)).toContain('REGLA_DE_PRUEBA');
+    expect(resultado.hallazgos.map((hallazgo) => hallazgo.reglaId)).toContain('REGLA_CON_ERROR');
   });
 
   it('applies the severity declared by the rule to its findings', () => {
-    const reglaInformativa: Regla = {
-      id: 'REGLA_INFORMATIVA',
-      severidad: 'warning',
-      descripcion: 'Regla informativa registrada despues del motor.',
-      evaluar: () => [
-        {
-          reglaId: 'REGLA_INFORMATIVA',
-          severidad: 'error',
-          mensaje: 'La regla informativa solo informa.',
-        },
-      ],
-    };
-
-    const resultado = crearMotor([reglaInformativa]).evaluar(contextoDe([relevo()]));
+    const resultado = crearMotor([reglaConAviso]).evaluar(contextoDe([tramo()]));
 
     expect(resultado.valido).toBe(true);
     expect(resultado.hallazgos[0].severidad).toBe('warning');
   });
 
   it('returns a valid empty result when there are no registered rules', () => {
-    const resultado = crearMotor([]).evaluar(contextoDe([relevo()]));
+    const resultado = crearMotor([]).evaluar(contextoDe([tramo()]));
 
     expect(resultado.hallazgos).toEqual([]);
     expect(resultado.valido).toBe(true);
