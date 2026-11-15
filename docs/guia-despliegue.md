@@ -13,8 +13,8 @@ La aplicación es una **PWA de gestión de una cuadrilla de costaleros**: Next.j
 | El repo | El código, con su historial | `github.com/cuadrillasoledadaya/app-relevos` |
 | La rama | Una versión del código | `main` (la base), `feature/cuadrilla-costaleros` (el trabajo en curso) |
 | Los PRs | Las revisiones del trabajo | 24 PRs en cadena, más un PR-tracker |
-| Vercel | El sitio donde se publica la app | `app-relevos.vercel.app` |
-| Supabase | La base de datos | proyecto `auvjqkdiadvwdmelyf`, región `eu-west-1` |
+| Vercel | El sitio donde se publica la app | proyecto `app-relevos`, en `app-relevos.vercel.app` |
+| Supabase | La base de datos | proyecto `auvjqkdiadvwdmefmlyf`, región `eu-west-1` |
 
 Dos conceptos que aparecen todo el tiempo y conviene tener claros:
 
@@ -63,6 +63,8 @@ No es un problema de la base de datos: es que el árbol de `main` está incomple
 
 Con eso, Vercel publica la versión del código que sí está completa. Cuando la cadena de PRs esté integrada en `main`, volvés a este paso y dejás `main` como rama de producción.
 
+> **Estado actual:** el proyecto de Vercel se llama `app-relevos` (antes `app-relevos-raal`) y su *Production Branch* sigue siendo `main`, que es la rama que **no** compila. El despliegue vivo se lanzó a mano desde `feature/cuadrilla-costaleros`. Hay que hacer este paso (cambiar la *Production Branch*) para que cada push a esa rama vuelva a publicar: es **lo único que falta** en el panel de Vercel (las variables de entorno y el framework ya están bien).
+
 ---
 
 ## Paso 3 — Las variables de entorno
@@ -72,14 +74,14 @@ En **Vercel** → tu proyecto → **Settings** → **Environment Variables**. Ag
 **1. `DATABASE_URL`** — la conexión a la base de datos.
 
 ```
-postgresql://postgres:1%40ChiquiDevil@db.auvjqkdiadvwdmelyf.supabase.co:5432/postgres
+postgresql://postgres.auvjqkdiadvwdmefmlyf:1%40ChiquiDevil@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
 ```
 
 Tres cosas que hay que respetar en esa cadena:
 
-- Es la conexión **directa** (puerto `5432`). La *agrupada* (el `pooler`, puerto `6543`) **no sirve** para este proyecto: el servidor responde `tenant/user postgres.<ref> not found`.
+- Va por el **pooler** (`aws-1-eu-west-1.pooler.supabase.com`, puerto `5432`, modo sesión), no por la conexión directa. La directa (`db.<ref>.supabase.co`) **no llega desde Vercel**: ese host sólo resuelve por IPv6 y las funciones de Vercel no tienen IPv6 saliente.
+- El **identificador del proyecto** va dentro del usuario, con el formato `postgres.<ref>`, y el `<ref>` es `auvjqkdiadvwdmefmlyf` (con `m` en el medio y dos `f` seguidas). Si se escribe mal, el pooler responde `tenant/user postgres.<ref> not found`.
 - La contraseña va **URL-codificada**: `1@ChiquiDevil` se escribe `1%40ChiquiDevil`, porque la `@` está reservada en una URL.
-- El host (`db.auvjqkdiadvwdmelyf.supabase.co`) sólo resuelve por **IPv6**. En una red sin IPv6 (como la de algunos equipos) la conexión directa no llega; en Vercel funciona.
 
 **2. `PAYLOAD_SECRET`** — el secreto con el que la app firma sus sesiones y cookies. Generá uno con:
 
@@ -88,6 +90,8 @@ openssl rand -base64 32
 ```
 
 Copiá el resultado y pegalo como valor. No lo compartas ni lo subas al repo.
+
+> En el proyecto de Vercel estas dos variables **ya están cargadas** (`Production`, `Preview` y `Development`). Si recreás el proyecto o las borrás, volvé a pegarlas con estos valores: sin `DATABASE_URL` la app no llega a la base, y sin `PAYLOAD_SECRET` las sesiones no se firman.
 
 > La base de datos **ya tiene el esquema**: la migración base está aplicada (16 tablas, 5 enums, 22 claves foráneas, 69 índices). No hay que migrar nada al desplegar.
 
@@ -140,8 +144,12 @@ gh api repos/cuadrillasoledadaya/app-relevos/commits/<sha>/status
 | Lo que ves | Qué significa | Qué hacer |
 | --- | --- | --- |
 | `Module not found: Can't resolve './collections/Users'` | La rama publicada no tiene las colecciones: es `main` (el esqueleto) | Cambiá la Production Branch al paso 2 |
+| Todo da 404 (`The page could not be found`, `x-vercel-error: NOT_FOUND`), aunque `/sw.js` y `/manifest.webmanifest` sí cargan | El proyecto tiene el framework en **Other**: Vercel publica sólo los archivos de `public/` y ninguna ruta de Next | En Vercel → **Settings → General → Framework Preset → Next.js**, guardá y redesplegá |
 | `x-vercel-error: NOT_FOUND` al abrir el dominio | El build de la rama de producción falló, así que no hay nada publicado | Revisá el log del despliegue |
 | `500` en `/api/pasos` o `/admin` | La app no llega a la base: revisá `DATABASE_URL` (¿está en el entorno correcto? ¿la contraseña URL-codificada?) | Corregí la variable y redesplegá |
+| `tenant/user postgres.<ref> not found` | El `<ref>` del proyecto está mal escrito en la `DATABASE_URL` | Copiá la cadena del paso 3 tal cual |
+| `ENETUNREACH` o `Connection terminated` al abrir la app | La `DATABASE_URL` apunta a la conexión directa (IPv6), que Vercel no alcanza | Usá el **pooler** del paso 3 |
+| Redirección a `vercel.com/sso-api` ("Protected by Vercel Authentication") | El proyecto tiene activada la protección de Vercel | En Vercel → **Settings → Deployment Protection** → dejá **Vercel Authentication: Disabled** |
 | `relation "users" does not exist` | La base no tiene el esquema | No debería pasar: la migración ya está aplicada |
 
 ---

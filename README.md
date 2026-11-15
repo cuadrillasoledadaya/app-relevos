@@ -71,7 +71,7 @@ En una instalación nueva, **la primera cuenta que se registra es administrador 
 | Variable | Obligatoria | Valor por defecto | Para qué sirve |
 | --- | --- | --- | --- |
 | `PAYLOAD_SECRET` | sí, en producción | hay un valor de reserva en `src/payload.config.ts` pensado para desarrollo: en producción hay que definirla siempre | firma las sesiones y las cookies de Payload |
-| `DATABASE_URL` | sí | — | cadena de conexión de Supabase: `postgresql://postgres.<ref>:<clave>@aws-0-<region>.pooler.supabase.com:5432/postgres` |
+| `DATABASE_URL` | sí | — | cadena de conexión de Supabase: `postgresql://postgres.<ref>:<clave>@aws-1-<region>.pooler.supabase.com:5432/postgres` |
 | `DATABASE_SCHEMA` | no | `public` | esquema de Postgres donde viven las tablas |
 | `DATABASE_SSL` | no | activo | `false` desactiva SSL (sólo para un Postgres local sin TLS; Supabase lo exige) |
 | `DATABASE_PUSH` | no | apagado | `true` sincroniza el esquema en desarrollo sin migraciones |
@@ -79,9 +79,11 @@ En una instalación nueva, **la primera cuenta que se registra es administrador 
 Ejemplo para copiar en un `.env`. La clave de la base de datos está en Supabase, en **Project Settings → Database**:
 
 ```bash
-# Conexión directa (puerto 5432 del pooler): la que usan las migraciones.
-# Conexión agrupada (puerto 6543 del pooler): la que usa el tráfico de la app.
-DATABASE_URL=postgresql://postgres.auvjqkdiadvwdmefmlyf:<CLAVE>@aws-0-<region>.pooler.supabase.com:5432/postgres
+# Conexión por el pooler (puerto 5432, modo sesión): la que usan las migraciones
+# y la app. El host de este proyecto es aws-1-eu-west-1.pooler.supabase.com:
+# la conexión directa (db.<ref>.supabase.co) sólo resuelve por IPv6 y no se
+# alcanza desde Vercel.
+DATABASE_URL=postgresql://postgres.auvjqkdiadvwdmefmlyf:<CLAVE>@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
 
 # Firma las sesiones y las cookies de Payload. Obligatoria en producción.
 PAYLOAD_SECRET=cambiame-por-una-cadena-larga-y-aleatoria
