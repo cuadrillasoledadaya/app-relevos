@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CODIGO_NUMERO_TRABAJADERAS_INVALIDO,
+  CODIGO_TRAMOS_INVALIDOS,
   ErrorDeDominio,
   MENSAJE_NUMERO_TRABAJADERAS_INVALIDO,
+  MENSAJE_TRAMOS_INVALIDOS,
 } from '../../src/domain/errors';
-import { crearPaso } from '../../src/domain/paso';
+import { crearPaso, TRAMOS_POR_DEFECTO } from '../../src/domain/paso';
 import type { Paso } from '../../src/domain/types';
 
 function crearPasoDePrueba(numeroTrabajaderas: number): Paso {
@@ -24,8 +26,8 @@ describe('crearPaso', () => {
     const paso = crearPasoDePrueba(4);
 
     expect(paso.trabajaderas).toHaveLength(4);
-    expect(paso.trabajaderas.map((trabajadora) => trabajadora.numero)).toEqual([1, 2, 3, 4]);
-    expect(paso.trabajaderas.map((trabajadora) => trabajadora.id)).toEqual([
+    expect(paso.trabajaderas.map((trabajadera) => trabajadera.numero)).toEqual([1, 2, 3, 4]);
+    expect(paso.trabajaderas.map((trabajadera) => trabajadera.id)).toEqual([
       'trab-paso-1-1',
       'trab-paso-1-2',
       'trab-paso-1-3',
@@ -48,7 +50,7 @@ describe('crearPaso', () => {
     });
 
     const ids = [...pasoA.trabajaderas, ...pasoB.trabajaderas].map(
-      (trabajadora) => trabajadora.id,
+      (trabajadera) => trabajadera.id,
     );
 
     expect(new Set(ids).size).toBe(6);
@@ -57,12 +59,53 @@ describe('crearPaso', () => {
   it('keeps the working positions sorted and splits them between both sides', () => {
     const paso = crearPasoDePrueba(5);
 
-    const numeros = paso.trabajaderas.map((trabajadora) => trabajadora.numero);
+    const numeros = paso.trabajaderas.map((trabajadera) => trabajadera.numero);
     expect(numeros).toEqual([...numeros].sort((a, b) => a - b));
-    expect(paso.trabajaderas.filter((trabajadora) => trabajadora.lado === 'izquierda')).toHaveLength(
+    expect(paso.trabajaderas.filter((trabajadera) => trabajadera.lado === 'izquierda')).toHaveLength(
       3,
     );
-    expect(paso.trabajaderas.filter((trabajadora) => trabajadora.lado === 'derecha')).toHaveLength(2);
+    expect(paso.trabajaderas.filter((trabajadera) => trabajadera.lado === 'derecha')).toHaveLength(2);
+  });
+
+  it('gives every working position the number of tramos of its rotation', () => {
+    const paso = crearPaso({
+      id: 'paso-1',
+      nombre: 'Paso de prueba',
+      cuadrillaId: 'c1',
+      numeroTrabajaderas: 3,
+      tramosPorTrabajadera: 8,
+    });
+
+    expect(paso.trabajaderas.map((trabajadera) => trabajadera.tramos)).toEqual([8, 8, 8]);
+  });
+
+  it('gives every working position the default number of tramos', () => {
+    const paso = crearPasoDePrueba(2);
+
+    expect(paso.trabajaderas.map((trabajadera) => trabajadera.tramos)).toEqual([
+      TRAMOS_POR_DEFECTO,
+      TRAMOS_POR_DEFECTO,
+    ]);
+  });
+
+  it('rejects a non positive number of tramos with the stable domain error code', () => {
+    let error: unknown;
+
+    try {
+      crearPaso({
+        id: 'paso-1',
+        nombre: 'Paso de prueba',
+        cuadrillaId: 'c1',
+        numeroTrabajaderas: 2,
+        tramosPorTrabajadera: 0,
+      });
+    } catch (captured) {
+      error = captured;
+    }
+
+    expect(error).toBeInstanceOf(ErrorDeDominio);
+    expect((error as ErrorDeDominio).codigo).toBe(CODIGO_TRAMOS_INVALIDOS);
+    expect((error as ErrorDeDominio).message).toBe(MENSAJE_TRAMOS_INVALIDOS);
   });
 
   it('rejects a non integer or non positive number with the exact domain message', () => {
