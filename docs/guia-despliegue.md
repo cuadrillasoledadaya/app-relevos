@@ -83,6 +83,10 @@ Tres cosas que hay que respetar en esa cadena:
 - El **identificador del proyecto** va dentro del usuario, con el formato `postgres.<ref>`, y el `<ref>` es `auvjqkdiadvwdmefmlyf` (con `m` en el medio y dos `f` seguidas). Si se escribe mal, el pooler responde `tenant/user postgres.<ref> not found`.
 - La contraseña va **URL-codificada**: si contiene `@` (u otros caracteres reservados) se escribe con su código (`%40` en lugar de `@`), porque la `@` está reservada en una URL.
 
+> **De donde sale `<CLAVE>`**: en Supabase -> tu proyecto -> **Project Settings -> Database -> Connection string -> URI**. La contrasena que corresponde a este proyecto **ya se roto** (el 15/11/2026, porque estaba escrita en este repositorio, que es publico): la nueva esta en el fichero `~/.supabase-rplantilla-password` de esta maquina, con permisos `600`. Si recreas el proyecto de Vercel, copiala de ahi.
+
+> **De dónde sale `<CLAVE>`**: en Supabase → tu proyecto → **Project Settings → Database → Connection string → URI**. La contraseña que corresponde a este proyecto **ya se rotó** (el 15/11/2026, porque estaba escrita en este repositorio, que es público): la nueva está en el fichero `~/.supabase-rplantilla-password` de esta máquina, con permisos `600`. Si recreás el proyecto de Vercel, copiala de ahí.
+
 **2. `PAYLOAD_SECRET`** — el secreto con el que la app firma sus sesiones y cookies. Generá uno con:
 
 ```bash
