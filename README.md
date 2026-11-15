@@ -184,6 +184,7 @@ La guía completa (cómo crear la clave, qué herramientas aparecen y ejemplos) 
 | --- | --- |
 | [`docs/adr/0001-stack-react-vs-next.md`](docs/adr/0001-stack-react-vs-next.md) | por qué Next.js y no React + Vite, y qué se revertiría si cambia |
 | [`docs/guia-mcp.md`](docs/guia-mcp.md) | cómo conectar un agente de IA por MCP |
+| [`docs/guia-despliegue.md`](docs/guia-despliegue.md) | cómo desplegar en Vercel paso a paso, para quien nunca lo hizo |
 | [`AGENTS.md`](AGENTS.md) | cómo trabaja un agente de IA en este repositorio |
 
 ## Qué no está decidido todavía
