@@ -69,22 +69,36 @@ Con eso, Vercel publica la versión del código que sí está completa. Cuando l
 
 ### Paso 2b — Publicar sin tocar la *Production Branch*
 
-Si el ajuste *Production Branch* no aparece en tu pantalla, usá los **deploy hooks**: son botones que publican una rama concreta en producción, y están en un lugar fácil de llegar.
+Si el ajuste *Production Branch* no aparece en tu pantalla, hay otra puerta para publicar: el comando `publicar-produccion`.
 
-**En el panel de Vercel:**
-
-1. Tu proyecto `app-relevos` → **Settings** → **Git** → abajo del todo, la sección **Deploy Hooks**.
-2. Ahí hay dos hooks:
-   - **`publicar-produccion`** → publica la rama `feature/cuadrilla-costaleros` (la rama de trabajo, que compila).
-   - **`publicar-produccion-main`** → publica `main`; sirve cuando la cadena de PRs esté integrada.
-3. El botón **Run** (o "Deploy Hook") de cada uno publica esa rama en `app-relevos.vercel.app`.
-
-**Desde la terminal** (en la máquina donde está el repo), hay un comando que hace lo mismo y además comprueba que la app llegó a la base:
+**Desde la terminal** (en la máquina donde está el repo), publica la rama que le digas en la dirección principal y comprueba que la app llegó a la base:
 
 ```bash
-publicar-produccion          # publica feature/cuadrilla-costaleros
-publicar-produccion main     # publica main
+cd ~/Proyectos\ ai/rplantilla
+publicar-produccion                              # publica la rama actual
+publicar-produccion feature/cuadrilla-costaleros # publica esa
+publicar-produccion main                         # publica main
 ```
+
+Sale así:
+
+```
+Publicando la rama feature/cuadrilla-costaleros (2fb2bea)
+Deployment: app-relevos-qu8tk56qu-alarmdryros-7957s-projects.vercel.app
+Esperando el build...
+[1] BUILDING  [2] BUILDING  [3] READY
+
+Comprobacion en https://app-relevos.vercel.app:
+  /              -> 200
+  /admin         -> 200
+  /api/pasos     -> 403
+  /api/mcp       -> 401
+  /api/fijaciones-> 403
+```
+
+> **Ojo con los deploy hooks**: en **Settings → Git → Deploy Hooks** hay dos botones (`preview-feature/cuadrilla-costaleros` y `preview-main`), pero **no publican la dirección principal**: crean un *preview* con su propia URL (`app-relevos-<hash>-....vercel.app`). Para la dirección principal, el comando de arriba.
+
+**Y si algún día apareces el ajuste**: cambiar la *Production Branch* a `main` hace que cada push a `main` publique solo. Hasta que `main` compile (o sea, hasta que se integre la cadena de PRs), sus builds fallan y **el sitio no se cae**: Vercel sólo publica los despliegues que compilan, así que sigue en pie el último bueno.
 
 ---
 
