@@ -1,67 +1,159 @@
-# Payload Blank Template
+# Cuadrilla de costaleros
 
-This template comes configured with the bare minimum to get started on anything you need.
+Aplicación web instalable (PWA) para gestionar una cuadrilla de costaleros: los **pasos** que se portan, las **trabajaderas** (los puestos bajo el paso), las **cuadrillas**, los **costaleros** y los **relevos** que deciden quién cubre cada puesto en cada punto del recorrido.
 
-## Quick start
+Se usa sobre todo desde el móvil, durante el recorrido, así que tiene que servir aunque no haya cobertura: la acción crítica (empezar un relevo) se guarda en el propio dispositivo y se sincroniza en cuanto vuelve la red.
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+## Qué resuelve
 
-## Quick Start - local setup
+- **Paso con las trabajaderas que elija la cuadrilla.** El número de trabajaderas de un paso lo elige quien lo crea (mínimo 1). Cada trabajadera queda numerada, ordenada, con lado (izquierda/derecha) y tipo.
+- **Plan de relevos.** El planificador genera un relevo por punto de relevo y salta la cuadrilla que relevó justo antes. Intenta cubrir todas las trabajaderas del paso; si a una cuadrilla le faltan costaleros, el puesto queda sin cubrir y lo denuncia la regla `TRABAJADERA_SIN_CUBRIR`. La misma entrada produce siempre el mismo plan.
+- **Reglas estrictas de cambio de costaleros.** Un motor de reglas evalúa cada relevo y avisa de las invariantes del relevo: un hallazgo `error` bloquea la operación y un `warning` sólo informa. Las reglas se añaden por registro, sin tocar el motor.
+- **Panel de administración y acceso por MCP.** Los datos se gestionan en `/admin` y también se pueden leer y operar desde un agente de IA por MCP (ver [`docs/guia-mcp.md`](docs/guia-mcp.md)).
 
-To spin up this template locally, follow these steps:
+## Stack
 
-### Clone
+| Pieza | Versión / detalle |
+| --- | --- |
+| Next.js | 16.3.3 (App Router) |
+| Payload CMS | 3.93.0 (panel en `/admin`) |
+| Base de datos | SQLite en desarrollo, con `@payloadcms/db-sqlite` 3.93.0 |
+| Tailwind CSS | 4.3.5 |
+| Tests | Vitest 4.0.18 |
+| Gestor de paquetes | pnpm 11.8.0 |
+| Node | `>= 24.22.1` |
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+El service worker está escrito a mano en `public/sw.js`: no hay ninguna librería de PWA en el bundle. La decisión de stack (React frente a Next.js) y sus alternativas están en el ADR [`docs/adr/0001-stack-react-vs-next.md`](docs/adr/0001-stack-react-vs-next.md).
 
-### Development
+## Requisitos
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URL` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+- Node `>= 24.22.1`
+- pnpm `11.8.0`
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+## Instalación
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+```bash
+pnpm install
+cp .env.example .env
+```
 
-#### Docker (Optional)
+Edita `.env` con los valores descritos en [Variables de entorno](#variables-de-entorno). Ojo: el `.env.example` que viene de la plantilla de Payload trae valores de MongoDB que **no** sirven aquí; los valores correctos son los de la tabla.
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+Arranca el servidor de desarrollo:
 
-To do so, follow these steps:
+```bash
+pnpm dev
+```
 
-- Modify the `MONGODB_URL` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URL` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+| Dirección | Qué es |
+| --- | --- |
+| http://localhost:3000 | la PWA (lista de pasos) |
+| http://localhost:3000/admin | panel de administración de Payload |
+| http://localhost:3000/api/mcp | servidor MCP |
 
-## How it works
+En una instalación nueva, **la primera cuenta que se registra es administrador automáticamente** (`src/collections/Users.ts`). Los roles son `admin`, `jefe` y `costalero`.
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+## Variables de entorno
 
-### Collections
+| Variable | Obligatoria | Valor por defecto | Para qué sirve |
+| --- | --- | --- | --- |
+| `PAYLOAD_SECRET` | sí, en producción | hay un valor de reserva en `src/payload.config.ts` pensado para desarrollo: en producción hay que definirla siempre | firma las sesiones y las cookies de Payload |
+| `DATABASE_URL` | no | `file:./dev.db` | ruta del fichero SQLite de desarrollo |
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+El fichero SQLite (`*.db`) está ignorado por git, así que cada máquina tiene su propia base de datos local.
 
-- #### Users (Authentication)
+## Comandos
 
-  Users are auth-enabled collections that have access to the admin panel.
+| Comando | Qué hace |
+| --- | --- |
+| `pnpm dev` | servidor de desarrollo en el puerto 3000 |
+| `pnpm build` | build de producción |
+| `pnpm start` | sirve el build de producción |
+| `pnpm test` | suite de Vitest |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm lint` | ESLint |
+| `pnpm generate:types` | genera `src/payload-types.ts` a partir de las colecciones (es un fichero generado: no está en el repositorio hasta que se ejecuta) |
+| `pnpm generate:importmap` | regenera el import map del panel de administración |
+| `node scripts/generar-iconos.mjs` | regenera los iconos PNG de la PWA |
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/3.x/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+Para desplegar: `pnpm build` y `pnpm start` (con `PAYLOAD_SECRET` definido y `NODE_ENV=production`). El `Dockerfile` que viene de la plantilla necesita `output: 'standalone'` en `next.config.ts`, que hoy no está activado: usa el build de Next directamente hasta que se decida esa vía.
 
-- #### Media
+## Rutas de la aplicación
 
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+| Ruta | Qué hay |
+| --- | --- |
+| `/` | lista de pasos |
+| `/pasos/[id]` | detalle de un paso: mapa de trabajaderas y línea de relevos |
+| `/relevos` | todos los relevos, agrupados por paso |
+| `/admin` | panel de administración de Payload |
+| `/api/mcp` | servidor MCP |
 
-### Docker
+## Cómo está montado el proyecto
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+```text
+src/
+  app/
+    (pwa)/        pantallas de la PWA: /, /pasos/[id], /relevos
+    (payload)/    panel de administración y rutas API de Payload
+  collections/    colecciones de Payload: users, cuadrillas, costaleros, pasos,
+                  relevos y puntos-de-relevo (con sus reglas de acceso)
+  domain/        contrato de dominio y lógica de negocio en TypeScript puro
+  pwa/           capa offline: caché en IndexedDB y cola de sincronización
+  payload.config.ts
+docs/
+  adr/0001-stack-react-vs-next.md   decisión de stack (React vs Next.js)
+  guia-mcp.md                       guía de uso del servidor MCP
+public/
+  manifest.webmanifest, sw.js, icons/
+scripts/generar-iconos.mjs
+tests/
+  domain/     motor de reglas, catálogo de reglas, planificador y creación de pasos
+  pwa/        capa offline
+```
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
+Dos capas bien separadas:
 
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+- **Cliente (PWA)** — `src/app/(pwa)` y `src/pwa`. Lee los datos por la API REST de Payload (`/api/pasos`, `/api/relevos`, …), normaliza los documentos en `src/app/(pwa)/componentes/data.ts` y guarda en caché o encola escrituras a través de la capa offline.
+- **Servidor (Payload)** — `src/collections` y `src/payload.config.ts`. Define la persistencia, los roles y las reglas de acceso, y expone los datos por REST, GraphQL y MCP.
 
-## Questions
+En medio, `src/domain` es el contrato de negocio: TypeScript puro, sin React, sin Next y sin Payload.
 
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+## Tests
+
+```bash
+pnpm test
+```
+
+Vitest recorre `tests/**/*.spec.ts`:
+
+- `tests/domain/` — motor de reglas, catálogo de reglas, planificador de relevos y creación de pasos.
+- `tests/pwa/` — capa offline: caché, cola de escrituras y sincronización.
+
+El dominio no necesita navegador ni servidor: los tests son deterministas y arrancan en milisegundos. Si añades una regla, un caso del planificador o un paso del dominio, su test va en `tests/domain/`.
+
+## MCP para agentes
+
+El backend incluye el plugin oficial de Payload (`@payloadcms/plugin-mcp`), de modo que un agente de IA puede leer y operar los datos sin montar nada aparte:
+
+- Endpoint: `POST http://localhost:3000/api/mcp`
+- Cabecera: `Authorization: Bearer <MCP-USER-API-KEY>`
+- Colecciones expuestas: `users`, `cuadrillas`, `costaleros`, `pasos`, `relevos` y `puntos-de-relevo`
+
+La guía completa (cómo crear la clave, qué herramientas aparecen y ejemplos) está en [`docs/guia-mcp.md`](docs/guia-mcp.md).
+
+## Documentación relacionada
+
+| Documento | Para qué sirve |
+| --- | --- |
+| [`docs/adr/0001-stack-react-vs-next.md`](docs/adr/0001-stack-react-vs-next.md) | por qué Next.js y no React + Vite, y qué se revertiría si cambia |
+| [`docs/guia-mcp.md`](docs/guia-mcp.md) | cómo conectar un agente de IA por MCP |
+| [`AGENTS.md`](AGENTS.md) | cómo trabaja un agente de IA en este repositorio |
+
+## Qué no está decidido todavía
+
+No cuentes con estas cosas como si fueran funciones del producto:
+
+- **El número de trabajaderas lo elige la cuadrilla.** No hay un número fijo ni un máximo impuesto en el código: se valida que sea un entero mayor o igual a 1.
+- **El número de relevos por paso y sus reglas concretas todavía no los ha decidido el producto.** No están escritos en el código como decisiones firmes: no los inventes ni los des por cerrados.
+- **Las reglas estrictas de cambio de costaleros más allá de las invariantes estructurales siguen por definir.** El catálogo arranca con ocho invariantes estructurales (siete `error` y una `warning`) y crece por registro, sin tocar el motor.
+- **La aplicación no tiene pantalla de gestión de cuentas.** Las cuentas se dan de alta y editan desde `/admin`.
