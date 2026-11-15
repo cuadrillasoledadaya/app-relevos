@@ -25,6 +25,13 @@ export const CODIGO_COSTALEROS_INSUFICIENTES = 'COSTALEROS_INSUFICIENTES'
 export const MENSAJE_COSTALEROS_INSUFICIENTES =
   'Una trabajadera no tiene costaleros suficientes para cubrir los cinco puestos.'
 
+/** Código de error: no hay un reparto que respete a la vez las reglas de descansos y los puestos. */
+export const CODIGO_ROTACION_IMPOSIBLE = 'ROTACION_IMPOSIBLE'
+
+/** Mensaje asociado a `CODIGO_ROTACION_IMPOSIBLE`. */
+export const MENSAJE_ROTACION_IMPOSIBLE =
+  'No hay un reparto de la rotación que respete las reglas de descansos y de puestos.'
+
 /** Error de dominio con código estable y mensaje para la persona usuaria. */
 export class ErrorDeDominio extends Error {
   readonly codigo: string
