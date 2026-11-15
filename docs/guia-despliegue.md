@@ -96,7 +96,7 @@ Comprobacion en https://app-relevos.vercel.app:
   /api/fijaciones-> 403
 ```
 
-> **Ojo con los deploy hooks**: en **Settings → Git → Deploy Hooks** hay dos botones (`publicar-produccion` y `publicar-produccion-main`), pero **no publican la dirección principal**: crean un *preview* con su propia URL (`app-relevos-<hash>-....vercel.app`). Para la dirección principal, el comando de arriba.
+> **Ojo con los deploy hooks**: en **Settings → Git → Deploy Hooks** hay dos botones (`preview-feature/cuadrilla-costaleros` y `preview-main`), pero **no publican la dirección principal**: crean un *preview* con su propia URL (`app-relevos-<hash>-....vercel.app`). Para la dirección principal, el comando de arriba.
 
 **Y si algún día apareces el ajuste**: cambiar la *Production Branch* a `main` hace que cada push a `main` publique solo. Hasta que `main` compile (o sea, hasta que se integre la cadena de PRs), sus builds fallan y **el sitio no se cae**: Vercel sólo publica los despliegues que compilan, así que sigue en pie el último bueno.
 
