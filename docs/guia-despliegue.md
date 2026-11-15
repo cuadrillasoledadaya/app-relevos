@@ -64,6 +64,27 @@ No es un problema de la base de datos: es que el árbol de `main` está incomple
 Con eso, Vercel publica la versión del código que sí está completa. Cuando la cadena de PRs esté integrada en `main`, volvés a este paso y dejás `main` como rama de producción.
 
 > **Estado actual:** el proyecto de Vercel se llama `app-relevos` (antes `app-relevos-raal`) y su *Production Branch* sigue siendo `main`, que es la rama que **no** compila. El despliegue vivo se lanzó a mano desde `feature/cuadrilla-costaleros`. Hay que hacer este paso (cambiar la *Production Branch*) para que cada push a esa rama vuelva a publicar: es **lo único que falta** en el panel de Vercel (las variables de entorno y el framework ya están bien).
+>
+> **¿No lo encontrás?** Seguí el paso 2b de abajo: hay otra puerta que hace lo mismo y es más fácil de encontrar.
+
+### Paso 2b — Publicar sin tocar la *Production Branch*
+
+Si el ajuste *Production Branch* no aparece en tu pantalla, usá los **deploy hooks**: son botones que publican una rama concreta en producción, y están en un lugar fácil de llegar.
+
+**En el panel de Vercel:**
+
+1. Tu proyecto `app-relevos` → **Settings** → **Git** → abajo del todo, la sección **Deploy Hooks**.
+2. Ahí hay dos hooks:
+   - **`publicar-produccion`** → publica la rama `feature/cuadrilla-costaleros` (la rama de trabajo, que compila).
+   - **`publicar-produccion-main`** → publica `main`; sirve cuando la cadena de PRs esté integrada.
+3. El botón **Run** (o "Deploy Hook") de cada uno publica esa rama en `app-relevos.vercel.app`.
+
+**Desde la terminal** (en la máquina donde está el repo), hay un comando que hace lo mismo y además comprueba que la app llegó a la base:
+
+```bash
+publicar-produccion          # publica feature/cuadrilla-costaleros
+publicar-produccion main     # publica main
+```
 
 ---
 
