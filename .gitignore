@@ -30,6 +30,9 @@ yarn-error.log*
 
 # local env files
 .env*.local
+# Heredada de la plantilla de Payload: trae valores de MongoDB que no sirven
+# para Supabase. El ejemplo canónico vive en el README ("Variables de entorno").
+.env.example
 
 # vercel
 .vercel

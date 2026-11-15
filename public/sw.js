@@ -62,7 +62,7 @@ async function networkFirst(request, cacheName) {
       cache.put(request, respuesta.clone())
     }
     return respuesta
-  } catch (error) {
+  } catch (_error) {
     const guardada = await cache.match(request)
     if (guardada) return guardada
     if (request.mode === 'navigate') {
